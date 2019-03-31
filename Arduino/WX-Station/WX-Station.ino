@@ -13,11 +13,8 @@
 #include <Adafruit_BME280.h>
 
 // Adafruit.io Support
-#include "AdafruitIO_WiFi.h"
-AdafruitIO_WiFi io(AIO_USERNAME, AIO_KEY,ssid, pass);
-// #include "AdafruitIO_Ethernet.h"
-
-// AdafruitIO_Ethernet io(AIO_USERNAME, AIO_KEY);
+// #include "AdafruitIO_WiFi.h"
+// AdafruitIO_WiFi io(IO_USERNAME, IO_KEY,ssid, pass);
 
 void setup() {
 
@@ -62,7 +59,7 @@ void loop() {
   Serial.println("Now writing display");
   write_eink_display();
   Serial.println("Entering delay");
-  sleep(200);
+  deepSleep(200);
 }
 
 void printWifiData() {
@@ -126,17 +123,17 @@ void write_eink_display() {
   epd.print("T: ");
   epd.setTextColor(BLACK_TEXT);
   epd.print((1.8 * t) +32);
-  epd.println("F");
+  epd.println(" F");
   epd.setCursor(5,40);
   epd.setTextColor(RED_TEXT);
   epd.print("H: ");
   epd.setTextColor(BLACK_TEXT);
-  epd.print(h); epd.println("%");
+  epd.print(h); epd.println(" %");
   epd.setCursor(5,70);
   epd.setTextColor(RED_TEXT);
   epd.print("P: ");
   epd.setTextColor(BLACK_TEXT);
-  epd.print((p / 3386.39 ) * 100); epd.println("In");
+  epd.print((p / 3386.39 ) * 100); epd.println(" In");
   epd.setTextColor(BLACK_TEXT);
   epd.setCursor(5,100);
   epd.print("Sig St: ");
@@ -162,9 +159,9 @@ void adafruit_metrics() {
 
 }
 
-void sleep(int sleepTimeInSec) {
+void deepSleep(int sleepTimeInSec) {
   Serial.print("Deep sleeping for ");
   Serial.print(sleepTimeInSec);
   Serial.println(" seconds");
-  ESP.deepSleep(sleepTimeInSec * 1000000);  //deepSleep needs microseconds
+  ESP.deepSleep(sleepTimeInSec * 1000000);  //ESP.deepSleep needs microseconds
 }
