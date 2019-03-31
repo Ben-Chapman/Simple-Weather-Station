@@ -4,11 +4,17 @@
 
 #include <ESP8266WiFi.h>
 
+// EPD Support
 #include <Adafruit_GFX.h>    // Core graphics library
 #include <Adafruit_EPD.h>
 
+// Env sensor Support
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
+
+// Adafruit.io Support
+#include "AdafruitIO_WiFi.h"
+AdafruitIO_WiFi io(AIO_USERNAME, AIO_KEY,ssid, pass);
 // #include "AdafruitIO_Ethernet.h"
 
 // AdafruitIO_Ethernet io(AIO_USERNAME, AIO_KEY);
