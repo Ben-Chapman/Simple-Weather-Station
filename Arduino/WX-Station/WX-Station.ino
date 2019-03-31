@@ -5,7 +5,7 @@
 #include <ESP8266WiFi.h>
 
 #include <Adafruit_GFX.h>    // Core graphics library
-#include "Adafruit_EPD.h"
+#include <Adafruit_EPD.h>
 
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
@@ -13,19 +13,13 @@
 
 // AdafruitIO_Ethernet io(AIO_USERNAME, AIO_KEY);
 
-
-// Wifi Setup
-// char ssid[] = "";     //  your network SSID (name)
-// char pass[] = "";  // your network password
-
-
 void setup() {
 
   Serial.begin(9600);
   Serial.println("Serial setup is working");
 
 //  attempt to connect to Wifi network:
-  int status  = WL_IDLE_STATUS;     // the Wifi radio's status
+  int status = WL_IDLE_STATUS;     // the Wifi radio's status
   while (status != WL_CONNECTED) {
     Serial.print("Attempting to connect to WPA SSID: ");
     Serial.println(ssid);
@@ -59,11 +53,10 @@ void setup() {
 
 void loop() {
   readEnvironmentSensor("temperature");
-  Serial.println("^^^ Loop temp reading");
   Serial.println("Now writing display");
   write_eink_display();
   Serial.println("Entering delay");
-  delay(190000);  // Minimum 180 seconds for display
+  sleep(200);
 }
 
 void printWifiData() {
@@ -163,6 +156,9 @@ void adafruit_metrics() {
 
 }
 
-void sleep() {
-  ESP.deepSleep(30000000);
+void sleep(int sleepTimeInSec) {
+  Serial.print("Deep sleeping for ");
+  Serial.print(sleepTimeInSec);
+  Serial.println(" seconds");
+  ESP.deepSleep(sleepTimeInSec * 1000000);  //deepSleep needs microseconds
 }
