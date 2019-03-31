@@ -1,18 +1,23 @@
 #include <SPI.h>
 #include <Wire.h>
+#include "config.h"
+
+#include <ESP8266WiFi.h>
 
 #include <Adafruit_GFX.h>    // Core graphics library
 #include "Adafruit_EPD.h"
 
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
+// #include "AdafruitIO_Ethernet.h"
 
-#include <ESP8266WiFi.h>
+// AdafruitIO_Ethernet io(AIO_USERNAME, AIO_KEY);
+
 
 // Wifi Setup
-char ssid[] = "";     //  your network SSID (name)
-char pass[] = "";  // your network password
-int status  = WL_IDLE_STATUS;     // the Wifi radio's status
+// char ssid[] = "";     //  your network SSID (name)
+// char pass[] = "";  // your network password
+
 
 void setup() {
 
@@ -20,20 +25,35 @@ void setup() {
   Serial.println("Serial setup is working");
 
 //  attempt to connect to Wifi network:
- while (status != WL_CONNECTED) {
-   Serial.print("Attempting to connect to WPA SSID: ");
-   Serial.println(ssid);
+  int status  = WL_IDLE_STATUS;     // the Wifi radio's status
+  while (status != WL_CONNECTED) {
+    Serial.print("Attempting to connect to WPA SSID: ");
+    Serial.println(ssid);
 
-   // Connect to WPA/WPA2 network
-   status = WiFi.begin(ssid, pass);
+    // Connect to WPA/WPA2 network
+    status = WiFi.begin(ssid, pass);
 
-   // wait 10 seconds for connection
-   delay(10000);
+    // wait 10 seconds for connection
+    delay(10000);
  }
 
  // you're connected now, so print out the data:
  Serial.print("You're connected to the network");
  printWifiData();
+
+   // connect to io.adafruit.com
+  // io.connect();
+
+  // wait for a connection
+  // while(io.status() < AIO_CONNECTED) {
+  //   Serial.print(".");
+  //   delay(500);
+  // }
+
+  // we are connected
+  // Serial.println();
+  // Serial.println(io.statusText());
+
 
 }
 
@@ -126,6 +146,21 @@ void write_eink_display() {
   epd.setTextSize(1.25);
   epd.print("Uptime: "); epd.print(millis());
   epd.display();
+}
+
+void adafruit_metrics() {
+
+
+//   io.run();
+
+//   // save count to the 'counter' feed on Adafruit IO
+//   Serial.print("sending -> ");
+//   Serial.println(count);
+//   counter->save(count);
+
+// // set up the 'temperature' feed
+// AdafruitIO_Feed *temperature = io.feed("temperature");
+
 }
 
 void sleep() {
