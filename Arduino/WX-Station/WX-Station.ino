@@ -5,7 +5,7 @@
 #include <ESP8266WiFi.h>
 
 // EPD Support
-#include <Adafruit_GFX.h>    // Core graphics library
+#include <Adafruit_GFX.h>
 #include <Adafruit_EPD.h>
 
 // Env sensor Support
@@ -13,8 +13,20 @@
 #include <Adafruit_BME280.h>
 
 // Adafruit.io Support
-// #include "AdafruitIO_WiFi.h"
-// AdafruitIO_WiFi io(IO_USERNAME, IO_KEY,ssid, pass);
+#include "Adafruit_MQTT.h"
+#include "Adafruit_MQTT_Client.h"
+
+
+WiFiClient client;
+
+// Setup the MQTT client class by passing in the WiFi client and MQTT server and login details.
+Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO_KEY);
+
+// Setup a feed for publishing.
+Adafruit_MQTT_Publish tempfeed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "feeds/weather-station.temperature");
+
+void MQTT_connect();
+
 
 void setup() {
 
@@ -37,25 +49,16 @@ void setup() {
  // you're connected now, so print out the data:
  Serial.print("You're connected to the network");
  printWifiData();
-
-   // connect to io.adafruit.com
-  // io.connect();
-
-  // wait for a connection
-  // while(io.status() < AIO_CONNECTED) {
-  //   Serial.print(".");
-  //   delay(500);
-  // }
-
-  // we are connected
-  // Serial.println();
-  // Serial.println(io.statusText());
-
-
 }
 
 void loop() {
-  readEnvironmentSensor("temperature");
+  MQTT_connect();
+  // readEnvironmentSensor("temperature");
+   if (! tempfeed.publish(readEnvironmentSensor("temperature"))) {
+    Serial.println(F("Failed"));
+  } else {
+    Serial.println(F("OK!"));
+  }
   Serial.println("Now writing display");
   write_eink_display();
   Serial.println("Entering delay");
@@ -144,24 +147,36 @@ void write_eink_display() {
   epd.display();
 }
 
-void adafruit_metrics() {
-
-
-//   io.run();
-
-//   // save count to the 'counter' feed on Adafruit IO
-//   Serial.print("sending -> ");
-//   Serial.println(count);
-//   counter->save(count);
-
-// // set up the 'temperature' feed
-// AdafruitIO_Feed *temperature = io.feed("temperature");
-
-}
-
 void deepSleep(int sleepTimeInSec) {
   Serial.print("Deep sleeping for ");
   Serial.print(sleepTimeInSec);
   Serial.println(" seconds");
   ESP.deepSleep(sleepTimeInSec * 1000000);  //ESP.deepSleep needs microseconds
+}
+
+// Function to connect and reconnect as necessary to the MQTT server.
+// Should be called in the loop function and it will take care if connecting.
+void MQTT_connect() {
+  int8_t ret;
+
+  // Stop if already connected.
+  if (mqtt.connected()) {
+    return;
+  }
+
+  Serial.print("Connecting to MQTT... ");
+
+  uint8_t retries = 3;
+  while ((ret = mqtt.connect()) != 0) { // connect will return 0 for connected
+       Serial.println(mqtt.connectErrorString(ret));
+       Serial.println("Retrying MQTT connection in 5 seconds...");
+       mqtt.disconnect();
+       delay(5000);  // wait 5 seconds
+       retries--;
+       if (retries == 0) {
+         // basically die and wait for WDT to reset me
+         while (1);
+       }
+  }
+  Serial.println("MQTT Connected!");
 }
