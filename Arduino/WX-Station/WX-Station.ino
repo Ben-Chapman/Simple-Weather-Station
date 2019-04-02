@@ -23,7 +23,9 @@ WiFiClient client;
 Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO_KEY);
 
 // Setup a feed for publishing.
-Adafruit_MQTT_Publish tempfeed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "feeds/weather-station.temperature");
+Adafruit_MQTT_Publish tempfeed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.temperature");
+Adafruit_MQTT_Publish humfeed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.humidity");
+Adafruit_MQTT_Publish pressurefeed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.pressure");
 
 void MQTT_connect();
 
@@ -59,6 +61,8 @@ void loop() {
   } else {
     Serial.println(F("OK!"));
   }
+  humfeed.publish(readEnvironmentSensor("humidity"));
+  pressurefeed.publish(readEnvironmentSensor("pressure"));
   Serial.println("Now writing display");
   write_eink_display();
   Serial.println("Entering delay");
