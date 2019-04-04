@@ -19,16 +19,17 @@
 
 WiFiClient client;
 
-// Setup the MQTT client class by passing in the WiFi client and MQTT server and login details.
+// Setup the MQTT client class
 Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO_KEY);
 
 // Setup a feed for publishing.
-Adafruit_MQTT_Publish tempfeed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.temperature");
-Adafruit_MQTT_Publish humfeed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.humidity");
-Adafruit_MQTT_Publish pressurefeed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.pressure");
+Adafruit_MQTT_Publish temperaturec_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.temperature");
 
-void MQTT_connect();
+Adafruit_MQTT_Publish temperaturef_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.temperature-f");
 
+Adafruit_MQTT_Publish humidity_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.humidity");
+
+Adafruit_MQTT_Publish pressure_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.pressure");
 
 void setup() {
 
@@ -54,19 +55,32 @@ void setup() {
 }
 
 void loop() {
-  MQTT_connect();
-  // readEnvironmentSensor("temperature");
-   if (! tempfeed.publish(readEnvironmentSensor("temperature"))) {
+  // Read measurements from enviroment sensor
+  float t = readEnvironmentSensor("temperature");  // Degrees C
+  float h = readEnvironmentSensor("humidity");  // % Humidity
+  float p = readEnvironmentSensor("pressure");  // Barometric pressure in Inches Mercury
+
+  // Adafruit.io Publishing
+  void MQTT_connect();
+
+   if (! temperaturec_feed.publish(t)) {
     Serial.println(F("Failed"));
   } else {
     Serial.println(F("OK!"));
   }
-  humfeed.publish(readEnvironmentSensor("humidity"));
-  pressurefeed.publish(readEnvironmentSensor("pressure"));
+  
+  temperaturec_feed.publish((t));  // Degrees F
+  temperaturef_feed.publish((t * 1.8)+ 32);  // Degrees F
+  humidity_feed.publish(readEnvironmentSensor("humidity"));
+  pressure_feed.publish(readEnvironmentSensor("pressure"));
+
+  // eInk Display
   Serial.println("Now writing display");
-  write_eink_display();
-  Serial.println("Entering delay");
-  deepSleep(200);
+  // write_eink_display();
+  write_eink_display(t, h, p);
+
+  Serial.println("Entering deep sleep...");
+  deepSleep(200);  //eInk Display can only refresh 1/180 seconds, so deepSleeping for at least that amount of time
 }
 
 void printWifiData() {
@@ -94,14 +108,17 @@ float readEnvironmentSensor(String sensorType){
     return h;
   }
   else if (sensorType == "pressure") {
-    float p = (((bme.readPressure() / 100.0F) / 3386.39) * 100);  // In Inches
+    float p = (((bme.readPressure() / 100.0F) / 3386.39) * 100);  // Inches Hg
     Serial.print("Pressure in Inches: ");
     Serial.println(p);
     return p;
   }
 }
 
-void write_eink_display() {
+void write_eink_display(
+  float temperature,
+  float humidity,
+  float pressure) {
 
   //eInk Display Setup
   #define EPD_CS     5
@@ -112,34 +129,43 @@ void write_eink_display() {
 
   // 1.54" Adafruit Tri-Color Display
   Adafruit_IL0373 epd(152, 152 ,EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY);
+
   #define BLACK_TEXT EPD_BLACK
   #define RED_TEXT EPD_RED
 
-  float t = readEnvironmentSensor("temperature");
-  float h = readEnvironmentSensor("humidity");
-  float p = readEnvironmentSensor("pressure");
-
+  // Initial display configuration
   epd.begin();
   epd.setRotation(2); // Landscape
   epd.clearBuffer();
   epd.setTextWrap(false);
-  epd.setCursor(5,10);
+  epd.setCursor(5,0);
   epd.setTextSize(2);
-  epd.setTextColor(RED_TEXT);
+
+
+
   epd.print("T: ");
   epd.setTextColor(BLACK_TEXT);
-  epd.print((1.8 * t) +32);
-  epd.println(" F");
-  epd.setCursor(5,40);
+  epd.print(temperature); epd.println(" C");
+
+  epd.setCursor(5,50);
   epd.setTextColor(RED_TEXT);
   epd.print("H: ");
   epd.setTextColor(BLACK_TEXT);
-  epd.print(h); epd.println(" %");
-  epd.setCursor(5,70);
+  epd.print(humidity); epd.println(" %");
+
+  epd.setCursor(5,90);
   epd.setTextColor(RED_TEXT);
   epd.print("P: ");
   epd.setTextColor(BLACK_TEXT);
-  epd.print((p / 3386.39 ) * 100); epd.println(" In");
+  epd.print(pressure); epd.println(" inHg");
+
+  epd.setCursor(5,90);
+  epd.setTextColor(RED_TEXT);
+  epd.print("P: ");
+  epd.setTextColor(BLACK_TEXT);
+  epd.print(pressure); epd.println(" inHg");
+
+  // Diag info to be displayed at the bottom of the screen
   epd.setTextColor(BLACK_TEXT);
   epd.setCursor(5,100);
   epd.print("Sig St: ");
@@ -156,6 +182,8 @@ void deepSleep(int sleepTimeInSec) {
   Serial.println(" seconds");
   ESP.deepSleep(sleepTimeInSec * 1000000);  //ESP.deepSleep needs microseconds
 }
+
+void MQTT_connect();
 
 // Function to connect and reconnect as necessary to the MQTT server.
 // Should be called in the loop function and it will take care if connecting.
