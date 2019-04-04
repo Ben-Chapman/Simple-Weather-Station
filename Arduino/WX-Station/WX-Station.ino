@@ -77,7 +77,6 @@ void printWifiData() {
 }
 
 float readEnvironmentSensor(String sensorType){
-
   // Initializing the environment sensor
   Adafruit_BME280 bme;  // Using I2C Connections
   bme.begin(&Wire);
@@ -95,8 +94,8 @@ float readEnvironmentSensor(String sensorType){
     return h;
   }
   else if (sensorType == "pressure") {
-    float p = (bme.readPressure() / 100.0F);  // In hPa
-    Serial.print("Pressure: ");
+    float p = (((bme.readPressure() / 100.0F) / 3386.39) * 100);  // In Inches
+    Serial.print("Pressure in Inches: ");
     Serial.println(p);
     return p;
   }
