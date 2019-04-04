@@ -142,28 +142,69 @@ void write_eink_display(
   epd.setTextSize(2);
 
 
+  int yPosition = 10;
+  int leading = 50; // Distance between lines
 
-  epd.print("T: ");
-  epd.setTextColor(BLACK_TEXT);
-  epd.print(temperature); epd.println(" C");
+// Loop through n lines of values you wish to display on the EPD
+  char displayValues[][10] = { "T: ", "H: ", "P: ", "SM: " };
+  
+  for( int i = 0; i < sizeof(displayValues); i++ ) {
+    if (i != 0) {
+      int yPosition = yPosition + leading;
+      Serial.println(yPosition);
+    }
 
-  epd.setCursor(5,50);
-  epd.setTextColor(RED_TEXT);
-  epd.print("H: ");
-  epd.setTextColor(BLACK_TEXT);
-  epd.print(humidity); epd.println(" %");
+    epd.setCursor(5,yPosition);
+    epd.setTextColor(RED_TEXT);
+    epd.print(displayValues[i]);
+    epd.setTextColor(BLACK_TEXT);
 
-  epd.setCursor(5,90);
-  epd.setTextColor(RED_TEXT);
-  epd.print("P: ");
-  epd.setTextColor(BLACK_TEXT);
-  epd.print(pressure); epd.println(" inHg");
+    if (strstr(displayValues[i], "T") != NULL) {
+      epd.print(temperature);
+      epd.print(" C");
+      epd.print("/");
+      epd.print((temperature * 1.8)+ 32);
+      epd.println(" F");
+    }
+    else if (strstr(displayValues[i], "H") != NULL) {
+      epd.print(humidity);
+      epd.println(" %");
+    }
+    else if (strstr(displayValues[i], "P") != NULL) {
+      epd.print(pressure);
+      epd.println(" inHg");
+    }
+    else if (strstr(displayValues[i], "SM") != NULL) {
+      // Soil moisture reading here
+    }
+    
+}  // end loop
 
-  epd.setCursor(5,90);
-  epd.setTextColor(RED_TEXT);
-  epd.print("P: ");
-  epd.setTextColor(BLACK_TEXT);
-  epd.print(pressure); epd.println(" inHg");
+
+  // epd.setCursor(5,10);
+ 
+  
+  // epd.print("T: ");
+  // epd.setTextColor(BLACK_TEXT);
+  // epd.print(temperature); epd.println(" C");
+
+  // epd.setCursor(5,50);
+  // epd.setTextColor(RED_TEXT);
+  // epd.print("H: ");
+  // epd.setTextColor(BLACK_TEXT);
+  // epd.print(humidity); epd.println(" %");
+
+  // epd.setCursor(5,90);
+  // epd.setTextColor(RED_TEXT);
+  // epd.print("P: ");
+  // epd.setTextColor(BLACK_TEXT);
+  // epd.print(pressure); epd.println(" inHg");
+
+  // epd.setCursor(5,90);
+  // epd.setTextColor(RED_TEXT);
+  // epd.print("P: ");
+  // epd.setTextColor(BLACK_TEXT);
+  // epd.print(pressure); epd.println(" inHg");
 
   // Diag info to be displayed at the bottom of the screen
   epd.setTextColor(BLACK_TEXT);
