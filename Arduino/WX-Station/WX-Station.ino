@@ -16,7 +16,7 @@
 #include "Adafruit_MQTT.h"
 #include "Adafruit_MQTT_Client.h"
 
-
+// Global configs
 WiFiClient client;
 
 // Setup the MQTT client class
@@ -36,13 +36,12 @@ void setup() {
   Serial.begin(9600);
   Serial.println("Serial setup is working");
 
-//  attempt to connect to Wifi network:
-  int status = WL_IDLE_STATUS;     // the Wifi radio's status
+// Connect to WiFi
+  int status = WL_IDLE_STATUS;
   while (status != WL_CONNECTED) {
     Serial.print("Attempting to connect to WPA SSID: ");
     Serial.println(ssid);
 
-    // Connect to WPA/WPA2 network
     status = WiFi.begin(ssid, pass);
 
     // wait 10 seconds for connection
@@ -50,8 +49,8 @@ void setup() {
  }
 
  // you're connected now, so print out the data:
- Serial.print("You're connected to the network");
- printWifiData();
+ Serial.print("You're connected to the network: ");
+ Serial.println(WiFi.localIP());
 }
 
 void loop() {
@@ -62,32 +61,21 @@ void loop() {
 
   // Adafruit.io Publishing
   void MQTT_connect();
-
-   if (! temperaturec_feed.publish(t)) {
-    Serial.println(F("Failed"));
-  } else {
-    Serial.println(F("OK!"));
-  }
   
-  temperaturec_feed.publish((t));  // Degrees F
+  temperaturec_feed.publish(t);  // Degrees C
   temperaturef_feed.publish((t * 1.8)+ 32);  // Degrees F
-  humidity_feed.publish(readEnvironmentSensor("humidity"));
-  pressure_feed.publish(readEnvironmentSensor("pressure"));
+  humidity_feed.publish(h);
+  pressure_feed.publish(p);
 
+// For testing only
+int sm = 100;
   // eInk Display
   Serial.println("Now writing display");
   // write_eink_display();
-  write_eink_display(t, h, p);
+  write_eink_display(t, h, p, sm);
 
   Serial.println("Entering deep sleep...");
   deepSleep(200);  //eInk Display can only refresh 1/180 seconds, so deepSleeping for at least that amount of time
-}
-
-void printWifiData() {
-  // print your WiFi shield's IP address:
-  IPAddress ip = WiFi.localIP();
-  Serial.print("IP Address: ");
-  Serial.println(ip);
 }
 
 float readEnvironmentSensor(String sensorType){
@@ -118,7 +106,8 @@ float readEnvironmentSensor(String sensorType){
 void write_eink_display(
   float temperature,
   float humidity,
-  float pressure) {
+  float pressure,
+  int soilMoisture) {
 
   //eInk Display Setup
   #define EPD_CS     5
@@ -146,7 +135,7 @@ void write_eink_display(
   int leading = 50; // Distance between lines
 
 // Loop through n lines of values you wish to display on the EPD
-  char displayValues[][10] = { "T: ", "H: ", "P: ", "SM: " };
+  char displayValues[][5] = { "T: ", "H: ", "P: ", "SM: " };
   
   for( int i = 0; i < sizeof(displayValues); i++ ) {
     if (i != 0) {
@@ -175,7 +164,7 @@ void write_eink_display(
       epd.println(" inHg");
     }
     else if (strstr(displayValues[i], "SM") != NULL) {
-      // Soil moisture reading here
+      epd.print(soilMoisture);
     }
     
 }  // end loop
@@ -207,13 +196,13 @@ void write_eink_display(
   // epd.print(pressure); epd.println(" inHg");
 
   // Diag info to be displayed at the bottom of the screen
+  epd.setTextSize(1.5);
   epd.setTextColor(BLACK_TEXT);
-  epd.setCursor(5,100);
-  epd.print("Sig St: ");
-  epd.println(WiFi.RSSI());
-  epd.setCursor(5,120);
-  epd.setTextSize(1.25);
-  epd.print("Uptime: "); epd.print(millis());
+  epd.setCursor(5,150);
+  // epd.print("Signal Strength: "); epd.print(WiFi.RSSI()); epd.print("  | IP Address: "); epd.println(Wifi.localIP());
+  // epd.setCursor(5,120);
+  // epd.setTextSize(1.25);
+  // epd.print("Uptime: "); epd.print(millis());
   epd.display();
 }
 
