@@ -23,20 +23,26 @@ WiFiClient client;
 Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO_KEY);
 
 // Setup a feed for publishing.
-Adafruit_MQTT_Publish temperaturec_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.temperature");
+Adafruit_MQTT_Publish temperaturec_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.temperaturec");
 
-Adafruit_MQTT_Publish temperaturef_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.temperature-f");
+Adafruit_MQTT_Publish temperaturef_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.temperaturef");
 
 Adafruit_MQTT_Publish humidity_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.humidity");
 
 Adafruit_MQTT_Publish pressure_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.pressure");
+
+Adafruit_MQTT_Publish runtime_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.debugruntime");
+
+Adafruit_MQTT_Publish sigstrength_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.debugsigstrength");
+
+void MQTT_connect();
 
 void setup() {
 
   Serial.begin(9600);
   Serial.println("Serial setup is working");
 
-// Connect to WiFi
+  // Connect to WiFi
   int status = WL_IDLE_STATUS;
   while (status != WL_CONNECTED) {
     Serial.print("Attempting to connect to WPA SSID: ");
@@ -60,12 +66,14 @@ void loop() {
   float p = readEnvironmentSensor("pressure");  // Barometric pressure in Inches Mercury
 
   // Adafruit.io Publishing
-  void MQTT_connect();
+  MQTT_connect();
   
   temperaturec_feed.publish(t);  // Degrees C
   temperaturef_feed.publish((t * 1.8)+ 32);  // Degrees F
   humidity_feed.publish(h);
   pressure_feed.publish(p);
+  runtime_feed.publish(int(millis()));
+  sigstrength_feed.publish(WiFi.RSSI());
 
 // For testing only
 int sm = 100;
@@ -85,7 +93,7 @@ float readEnvironmentSensor(String sensorType){
 
   if (sensorType == "temperature" ) {
    float t = bme.readTemperature();  // Degrees C
-   Serial.print("Temperature: ");
+   Serial.print("Temperature C: ");
    Serial.println(t);
    return t;
 }
@@ -127,7 +135,7 @@ void write_eink_display(
   epd.setRotation(2); // Landscape
   epd.clearBuffer();
   epd.setTextWrap(false);
-  epd.setCursor(5,0);
+  epd.setCursor(2,0);
   epd.setTextSize(2);
 
 
@@ -135,74 +143,73 @@ void write_eink_display(
   int leading = 50; // Distance between lines
 
 // Loop through n lines of values you wish to display on the EPD
-  char displayValues[][5] = { "T: ", "H: ", "P: ", "SM: " };
+//   char displayValues[][5] = { "T: ", "H: ", "P: ", "SM: " };
   
-  for( int i = 0; i < sizeof(displayValues); i++ ) {
-    if (i != 0) {
-      int yPosition = yPosition + leading;
-      Serial.println(yPosition);
-    }
+//   for( int i = 0; i < sizeof(displayValues); i++ ) {
+//     if (i != 0) {
+//       int yPosition = yPosition + leading;
+//       Serial.print("yPosition: ");
+//       Serial.println(yPosition);
+//     }
 
-    epd.setCursor(5,yPosition);
-    epd.setTextColor(RED_TEXT);
-    epd.print(displayValues[i]);
-    epd.setTextColor(BLACK_TEXT);
+//     epd.setCursor(5,yPosition);
+//     epd.setTextColor(RED_TEXT);
+//     epd.print(displayValues[i]);
+//     epd.setTextColor(BLACK_TEXT);
 
-    if (strstr(displayValues[i], "T") != NULL) {
-      epd.print(temperature);
-      epd.print(" C");
-      epd.print("/");
-      epd.print((temperature * 1.8)+ 32);
-      epd.println(" F");
-    }
-    else if (strstr(displayValues[i], "H") != NULL) {
-      epd.print(humidity);
-      epd.println(" %");
-    }
-    else if (strstr(displayValues[i], "P") != NULL) {
-      epd.print(pressure);
-      epd.println(" inHg");
-    }
-    else if (strstr(displayValues[i], "SM") != NULL) {
-      epd.print(soilMoisture);
-    }
+//     if (strstr(displayValues[i], "T") != NULL) {
+//       epd.print(temperature);
+//       epd.print(" C");
+//       epd.print("/");
+//       epd.print((temperature * 1.8)+ 32);
+//       epd.println(" F");
+//     }
+//     else if (strstr(displayValues[i], "H") != NULL) {
+//       epd.print(humidity);
+//       epd.println(" %");
+//     }
+//     else if (strstr(displayValues[i], "P") != NULL) {
+//       epd.print(pressure);
+//       epd.println(" inHg");
+//     }
+//     else if (strstr(displayValues[i], "SM") != NULL) {
+//       epd.print(soilMoisture);
+//     }
     
-}  // end loop
+// }  // end loop
 
 
-  // epd.setCursor(5,10);
+  epd.setCursor(2,10);
  
   
-  // epd.print("T: ");
-  // epd.setTextColor(BLACK_TEXT);
-  // epd.print(temperature); epd.println(" C");
+  epd.print("T: ");
+  epd.setTextColor(BLACK_TEXT);
+  epd.print(temperature); epd.println(" C");
 
-  // epd.setCursor(5,50);
-  // epd.setTextColor(RED_TEXT);
-  // epd.print("H: ");
-  // epd.setTextColor(BLACK_TEXT);
-  // epd.print(humidity); epd.println(" %");
+  epd.setCursor(2,50);
+  epd.setTextColor(RED_TEXT);
+  epd.print("H: ");
+  epd.setTextColor(BLACK_TEXT);
+  epd.print(humidity); epd.println(" %");
 
-  // epd.setCursor(5,90);
-  // epd.setTextColor(RED_TEXT);
-  // epd.print("P: ");
-  // epd.setTextColor(BLACK_TEXT);
-  // epd.print(pressure); epd.println(" inHg");
+  epd.setCursor(2,90);
+  epd.setTextColor(RED_TEXT);
+  epd.print("P: ");
+  epd.setTextColor(BLACK_TEXT);
+  epd.print(pressure); epd.println(" inHg");
 
-  // epd.setCursor(5,90);
-  // epd.setTextColor(RED_TEXT);
-  // epd.print("P: ");
-  // epd.setTextColor(BLACK_TEXT);
-  // epd.print(pressure); epd.println(" inHg");
+  epd.setCursor(2,90);
+  epd.setTextColor(RED_TEXT);
+  epd.print("P: ");
+  epd.setTextColor(BLACK_TEXT);
+  epd.print(pressure); epd.println(" inHg");
 
   // Diag info to be displayed at the bottom of the screen
   epd.setTextSize(1.5);
   epd.setTextColor(BLACK_TEXT);
-  epd.setCursor(5,150);
-  // epd.print("Signal Strength: "); epd.print(WiFi.RSSI()); epd.print("  | IP Address: "); epd.println(Wifi.localIP());
-  // epd.setCursor(5,120);
-  // epd.setTextSize(1.25);
-  // epd.print("Uptime: "); epd.print(millis());
+  epd.setCursor(2,137);
+  epd.print("Sig: "); epd.print(WiFi.RSSI()); epd.print(" | IP: "); epd.print(WiFi.localIP());
+
   epd.display();
 }
 
