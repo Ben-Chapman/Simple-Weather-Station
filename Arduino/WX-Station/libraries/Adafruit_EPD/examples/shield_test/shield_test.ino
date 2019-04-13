@@ -1,85 +1,181 @@
 /***************************************************
-  This is our Bitmap drawing example for the Adafruit EPD Breakout and Shield
-  ----> http://www.adafruit.com/products/3625
-  Check out the links above for our tutorials and wiring diagrams
   Adafruit invests time and resources providing this open source code,
   please support Adafruit and open-source hardware by purchasing
   products from Adafruit!
+
   Written by Limor Fried/Ladyada for Adafruit Industries.
   MIT license, all text above must be included in any redistribution
-
-  For the 1.54" EPD, the max image size is 152x152 pixels
-  For the 2.13" EPD, the max image size is 212x104 pixels
-  For the 2.13" EPD, the max image size is 264x176 pixels
  ****************************************************/
 
 #include <Adafruit_GFX.h>    // Core graphics library
-#include "Adafruit_EPD.h"    // Hardware-specific library
+#include "Adafruit_EPD.h"
 #include <SD.h>
-
-// EPD display and SD card will share the hardware SPI interface.
-// Hardware SPI pins are specific to the Arduino board type and
-// cannot be remapped to alternate pins.  For Arduino Uno,
-// Duemilanove, etc., pin 11 = MOSI, pin 12 = MISO, pin 13 = SCK.
 
 #define EPD_CS     10
 #define EPD_DC      9
 #define SRAM_CS     8
-#define EPD_RESET   5 // can set to -1 and share with microcontroller Reset!
-#define EPD_BUSY    3 // can set to -1 to not use a pin (will wait a fixed delay)
+#define EPD_RESET  -1 // shared with microcontroller Reset!
 #define SD_CS       4
 
-/* Uncomment the following line if you are using 1.54" tricolor EPD */
-//Adafruit_IL0373 display(152, 152, EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY);
-
-/* Uncomment the following line if you are using 1.54" monochrome EPD */
-//Adafruit_SSD1608 display(200, 200, EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY);
-
-/* Uncomment the following line if you are using 2.13" tricolor EPD */
-Adafruit_IL0373 display(212, 104, EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY);
-//#define FLEXIBLE_213
-
-/* Uncomment the following line if you are using 2.13" monochrome 250*122 EPD */
-//Adafruit_SSD1675 display(250, 122, EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY);
 
 /* Uncomment the following line if you are using 2.7" tricolor or grayscale EPD */
-//Adafruit_IL91874 display(264, 176, EPD_DC, EPD_RESET, EPD_CS, SRAM_CS);
+Adafruit_IL91874 display(264, 176, EPD_DC, EPD_RESET, EPD_CS, SRAM_CS);
 
-/* Uncomment the following line if you are using 2.9" EPD */
-//Adafruit_IL0373 display(296, 128, EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY);
-//#define FLEXIBLE_290
+float p = 3.1415926;
 
-/* Uncomment the following line if you are using 4.2" tricolor EPD */
-//Adafruit_IL0398 display(300, 400, EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY);
+int8_t readButtons(void) {
+  uint16_t reading = analogRead(A3);
+  //Serial.println(reading);
+
+  if (reading > 600) {
+    return 0; // no buttons pressed
+  }
+  if (reading > 400) {
+    return 4; // button D pressed
+  }
+  if (reading > 250) {
+    return 3; // button C pressed
+  }
+  if (reading > 125) {
+    return 2; // button B pressed
+  }
+  return 1; // Button A pressed
+}
 
 void setup(void) {
   Serial.begin(115200);
-  //while (!Serial) {  delay(10); }
+  while (!Serial) delay(10);
+
+  delay(100);
+  
+  Serial.println(F("Hello! Adafruit EInk Shield Test"));
+
   display.begin();
-
-#if defined(FLEXIBLE_213) || defined(FLEXIBLE_290)
-  // The flexible displays have different buffers and invert settings!
-  display.setBlackBuffer(1, false);
-  display.setColorBuffer(1, false);
-#endif
-
-  Serial.print("Initializing SD card...");
-  if (!SD.begin(SD_CS)) {
-    Serial.println("SD Card Init failed!");
-  }
-  Serial.println("OK!");
+  display.setRotation(2);
 
   display.clearBuffer();
+  display.setCursor(5, 5);
+  display.setTextColor(EPD_BLACK);
+  display.setTextSize(2);
+  display.setTextWrap(true);
+  display.println(F("Adafruit\n2.7\"EInk Shield Test"));
 
-  //display.setRotation(3);  // rotate the display if desired
-  bmpDraw("/blinka.bmp",0,0);
-
+  Serial.print(F("Initializing SD card..."));
+  if (!SD.begin(SD_CS)) {
+    Serial.println(F("SD Card Init failed!"));
+    display.setTextColor(EPD_RED);
+    display.println(F("SD card not found"));
+  } else {
+    Serial.println(F("OK!"));
+    display.println(F("SD card found"));
+  }
+  Serial.print(F("Drawing..."));
+  display.display();
+  Serial.println(F("Ready!"));
 }
 
 void loop() {
-  //don't do anything!
-  delay(3000);
+  int button = readButtons();
+  if (button == 0) {
+    return;
+  }
+  Serial.print(F("Button ")); Serial.print(button); Serial.println(F(" pressed"));
+
+  if (button == 1) {
+    Serial.print(F("Triangle Test..."));
+    testtriangles();
+    Serial.println(F("Done"));
+  }
+
+  if (button == 2) {
+    Serial.print(F("Lines Test..."));
+    testlines(EPD_BLACK, EPD_RED);   
+    Serial.println(F("Done"));
+  }
+
+  if (button == 3) {
+    Serial.print(F("Text Test..."));
+    epdPrintTest();
+    Serial.println("Done");
+  }
+
+  if (button == 4) {
+    Serial.print(F("Bitmap Test..."));
+    display.clearBuffer();
+    bmpDraw("/blinka27.bmp",0,0);
+    Serial.println(F("Done"));
+  }
+
+  // wait until button is released
+  while (readButtons()) {
+    delay(10);
+  }
 }
+
+void testlines(uint16_t color1, uint16_t color2) {
+  display.clearBuffer();
+  for (int16_t i=0; i<display.width(); i+=4) {
+    display.drawLine(0, 0, i, display.height()-1, color1);
+  }
+
+  for (int16_t i=0; i<display.height(); i+=4) {
+    display.drawLine(display.width()-1, 0, 0, i, color2);  // on grayscale this will be mid-gray
+  }
+  display.display();
+}
+
+void testdrawtext(char *text, uint16_t color) {
+  display.clearBuffer();
+  display.setCursor(5, 5);
+  display.setTextColor(color);
+  display.setTextWrap(true);
+  display.print(text);
+  display.display();
+}
+
+void testtriangles() {
+  display.clearBuffer();
+  int color = EPD_BLACK;
+  int t;
+  int w = display.width()/2;
+  int x = display.height()-1;
+  int y = 0;
+  int z = display.width();
+  for(t = 0 ; t <= 15; t++) {
+    display.drawTriangle(w, y, y, x, z, x, color);
+    x-=4;
+    y+=4;
+    z-=4;
+    if(t == 8) color = EPD_RED;
+  }
+  display.display();
+}
+
+void epdPrintTest() {
+  display.clearBuffer();
+  display.setCursor(5, 5);
+  display.fillScreen(EPD_WHITE);
+  display.setTextColor(EPD_BLACK);
+  display.setTextSize(2);
+  display.println("Hello World!");
+  display.setTextSize(1);
+  display.setTextColor(EPD_RED);
+  display.print(p, 6);
+  display.println(" Want pi?");
+  display.println(" ");
+  display.print(8675309, HEX); // print 8,675,309 out in HEX!
+  display.println(" Print HEX!");
+  display.println(" ");
+  display.setTextColor(EPD_BLACK);
+  display.println("Sketch has been");
+  display.println("running for: ");
+  display.setTextColor(EPD_RED);
+  display.print(millis() / 1000);
+  display.setTextColor(EPD_BLACK);
+  display.print(" seconds.");
+  display.display();
+}
+
 
 // This function opens a Windows Bitmap (BMP) file and
 // displays it at the given coordinates.  It's sped up
