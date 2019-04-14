@@ -63,7 +63,7 @@ void loop() {
   // Read measurements from enviroment sensor
   float t = readEnvironmentSensor("temperature");  // Degrees C
   float h = readEnvironmentSensor("humidity");  // % Humidity
-  float p = readEnvironmentSensor("pressure");  // Barometric pressure in Inches Mercury
+  float p = readEnvironmentSensor("pressure");  // Barometric pressure
 
   // Adafruit.io Publishing
   MQTT_connect();
@@ -71,7 +71,7 @@ void loop() {
   temperaturec_feed.publish(t);  // Degrees C
   temperaturef_feed.publish((t * 1.8)+ 32);  // Degrees F
   humidity_feed.publish(h);
-  pressure_feed.publish(p);
+  pressure_feed.publish(p / 100);  // Millibar
   runtime_feed.publish(int(millis()));
   sigstrength_feed.publish(WiFi.RSSI());
 
@@ -104,9 +104,12 @@ float readEnvironmentSensor(String sensorType){
     return h;
   }
   else if (sensorType == "pressure") {
-    float p = (((bme.readPressure() / 100.0F) / 3386.39) * 100);  // Inches Hg
-    Serial.print("Pressure in Inches: ");
-    Serial.println(p);
+    // Pressure is returned in Pascals.
+    // 100 Pascal == 1 hPa
+    // 1 inHg == 3386.39 Pascal
+    float p = (bme.readPressure());  // Pascals
+    Serial.print("Pressure in Millibar: ");
+    Serial.println(p / 100);
     return p;
   }
 }
@@ -180,30 +183,30 @@ void write_eink_display(
 
 
   epd.setCursor(2,10);
- 
-  
+  epd.setTextColor(RED_TEXT);
   epd.print("T: ");
   epd.setTextColor(BLACK_TEXT);
   epd.print(temperature); epd.println(" C");
 
-  epd.setCursor(2,50);
+  epd.setCursor(2,45);
   epd.setTextColor(RED_TEXT);
   epd.print("H: ");
   epd.setTextColor(BLACK_TEXT);
   epd.print(humidity); epd.println(" %");
 
-  epd.setCursor(2,90);
+  epd.setCursor(2,80);
   epd.setTextColor(RED_TEXT);
   epd.print("P: ");
   epd.setTextColor(BLACK_TEXT);
-  epd.print(pressure); epd.println(" inHg");
+  epd.print(pressure / 3386.39);  // Inches Mercury
+  epd.println(" inHg");
 
-  epd.setCursor(2,90);
+  epd.setCursor(2,115);
   epd.setTextColor(RED_TEXT);
-  epd.print("P: ");
+  epd.print("SM: ");
   epd.setTextColor(BLACK_TEXT);
-  epd.print(pressure); epd.println(" inHg");
-
+  epd.print(soilMoisture);
+ 
   // Diag info to be displayed at the bottom of the screen
   epd.setTextSize(1.5);
   epd.setTextColor(BLACK_TEXT);
