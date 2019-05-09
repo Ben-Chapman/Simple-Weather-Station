@@ -16,13 +16,13 @@
 #include "Adafruit_MQTT.h"
 #include "Adafruit_MQTT_Client.h"
 
-// // Global configs
+// Global configs
 WiFiClient client;
 
-// // Setup the MQTT client class
+// Setup the MQTT client class
 Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO_KEY);
 
-// // Setup feeds for publishing.
+// Setup feeds for publishing.
 Adafruit_MQTT_Publish temperaturec_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.temperaturec");
 
 Adafruit_MQTT_Publish temperaturef_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.temperaturef");
@@ -79,7 +79,7 @@ void loop() {
   */
   int sm = 1000 - analogRead(A0);  // Soil Moisture
 
-//   // Adafruit.io Publishing
+  // Adafruit.io Publishing
   MQTT_connect();
 
   temperaturec_feed.publish(int(t));  // Degrees C
@@ -90,12 +90,12 @@ void loop() {
   runtime_feed.publish(int(millis()));
   sigstrength_feed.publish(WiFi.RSSI());
 
-//   // eInk Display
+  // eInk Display
   Serial.println("Now writing display");
   write_eink_display(t, h, p, sm);
 
   Serial.println("Entering deep sleep...");
-//   //eInk Display can only refresh 1/180 seconds, so deepSleeping for at least that amount of time
+  // eInk Display can only refresh 1/180 seconds, so deepSleeping for at least that amount of time
   deepSleep(200);  
 }
 
