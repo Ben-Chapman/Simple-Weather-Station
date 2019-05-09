@@ -45,6 +45,8 @@ void setup() {
   Serial.println("Serial setup is working");
   
   // Connect to WiFi
+  unsigned long startTime = millis();
+
   int status = WL_IDLE_STATUS;
   while (status != WL_CONNECTED) {
     Serial.print("Attempting to connect to WPA SSID: ");
@@ -52,13 +54,19 @@ void setup() {
 
     status = WiFi.begin(ssid, pass);
 
-    // wait 10 seconds for connection
-    delay(10000);
+    // wait n seconds for connection
+    delay(15000);
  }
 
- // you're connected now, so print out the data:
- Serial.print("You're connected to the network: ");
- Serial.println(WiFi.localIP());
+  // you're connected now, so print out the data:
+  unsigned long finishTime = millis();
+
+  Serial.print("You're connected to the network: ");
+  Serial.println(WiFi.localIP());
+  Serial.print("WiFi connection took ");
+  unsigned long timeTaken = ((finishTime - startTime) / 1000);
+  Serial.print(timeTaken);
+  Serial.println(" seconds");
 }
 
 void loop() {
