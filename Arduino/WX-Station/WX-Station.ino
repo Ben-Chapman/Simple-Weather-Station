@@ -22,6 +22,16 @@ WiFiClient client;
 // Setup the MQTT client class
 Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO_KEY);
 
+char *adafruitIO_Feeds[8] = {
+  "temperaturec",
+  "temperaturef",
+  "humidity",
+  "pressure",
+  "soilMoisture",
+  "debugruntime",
+  "debugsigstrength"
+};
+
 // Setup feeds for publishing.
 Adafruit_MQTT_Publish temperaturec_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.temperaturec");
 
@@ -40,17 +50,18 @@ Adafruit_MQTT_Publish sigstrength_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNA
 void MQTT_connect();
 
 void setup() {
+  #ifdef DEBUG
+    Serial.begin(115200);
+    Serial.println("Serial setup is connected");
+  #endif
 
-  Serial.begin(115200);
-  Serial.println("Serial setup is working");
-  
   // Connect to WiFi
   unsigned long startTime = millis();
 
   int status = WL_IDLE_STATUS;
   while (status != WL_CONNECTED) {
-    Serial.print("Attempting to connect to WPA SSID: ");
-    Serial.println(ssid);
+    debugPrint("Attempting to connect to WPA SSID: ");
+    debugPrintln(ssid);
 
     status = WiFi.begin(ssid, pass);
 
@@ -58,15 +69,14 @@ void setup() {
     delay(15000);
  }
 
-  // you're connected now, so print out the data:
   unsigned long finishTime = millis();
 
-  Serial.print("You're connected to the network: ");
-  Serial.println(WiFi.localIP());
-  Serial.print("WiFi connection took ");
+  debugPrint("You're connected to the network: ");
+  debugPrintln(WiFi.localIP());
+  debugPrint("WiFi connection took ");
   unsigned long timeTaken = ((finishTime - startTime) / 1000);
-  Serial.print(timeTaken);
-  Serial.println(" seconds");
+  debugPrint(timeTaken);
+  debugPrintln(" seconds");
 }
 
 void loop() {
@@ -90,11 +100,15 @@ void loop() {
   runtime_feed.publish(int(millis()));
   sigstrength_feed.publish(WiFi.RSSI());
 
+  // Disconnect network to save power while writing display
+  mqtt.disconnect();
+  WiFi.disconnect();  
+
   // eInk Display
-  Serial.println("Now writing display");
+  debugPrintln("Now writing display");
   write_eink_display(t, h, p, sm);
 
-  Serial.println("Entering deep sleep...");
+  debugPrintln("Entering deep sleep...");
   // eInk Display can only refresh 1/180 seconds, so deepSleeping for at least that amount of time
   deepSleep(200);  
 }
@@ -106,14 +120,14 @@ float readEnvironmentSensor(String sensorType){
 
   if (sensorType == "temperature" ) {
    float t = bme.readTemperature();  // Degrees C
-   Serial.print("Temperature C: ");
-   Serial.println(t);
+   debugPrint("Temperature C: ");
+   debugPrintln(t);
    return t;
 }
   else if (sensorType == "humidity") {
     float h = bme.readHumidity();
-    Serial.print("Humidity: ");
-    Serial.println(h);
+    debugPrint("Humidity: ");
+    debugPrintln(h);
     return h;
   }
   else if (sensorType == "pressure") {
@@ -121,8 +135,8 @@ float readEnvironmentSensor(String sensorType){
     // 100 Pascal == 1 hPa
     // 1 inHg == 3386.39 Pascal
     float p = (bme.readPressure());  // Pascals
-    Serial.print("Pressure in Millibar: ");
-    Serial.println(p / 100);
+    debugPrint("Pressure in Millibar: ");
+    debugPrintln(p / 100);
     return p;
   }
 }
@@ -191,9 +205,9 @@ void write_eink_display(
 }
 
 void deepSleep(int sleepTimeInSec) {
-  Serial.print("Deep sleeping for ");
-  Serial.print(sleepTimeInSec);
-  Serial.println(" seconds");
+  debugPrint("Deep sleeping for ");
+  debugPrint(sleepTimeInSec);
+  debugPrintln(" seconds");
   ESP.deepSleep(sleepTimeInSec * 1000000);  //ESP.deepSleep needs microseconds
 }
 
@@ -209,12 +223,12 @@ void MQTT_connect() {
     return;
   }
 
-  Serial.print("Connecting to MQTT... ");
+  debugPrint("Connecting to MQTT... ");
 
   uint8_t retries = 3;
   while ((ret = mqtt.connect()) != 0) { // connect will return 0 for connected
-       Serial.println(mqtt.connectErrorString(ret));
-       Serial.println("Retrying MQTT connection in 5 seconds...");
+       debugPrintln(mqtt.connectErrorString(ret));
+       debugPrintln("Retrying MQTT connection in 5 seconds...");
        mqtt.disconnect();
        delay(5000);  // wait 5 seconds
        retries--;
@@ -223,5 +237,5 @@ void MQTT_connect() {
          while (1);
        }
   }
-  Serial.println("MQTT Connected!");
+  debugPrintln("MQTT Connected!");
 }
