@@ -16,38 +16,40 @@
 #include "Adafruit_MQTT.h"
 #include "Adafruit_MQTT_Client.h"
 
-// Global configs
+/*
+  Global configs
+*/
+
+// Creating the array to be used for environmental sensor readings
+float sensorReadings[5] = {};
+
 WiFiClient client;
+
+
+
 
 // Setup the MQTT client class
 Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO_KEY);
 
-char *adafruitIO_Feeds[8] = {
-  "temperaturec",
-  "temperaturef",
-  "humidity",
-  "pressure",
-  "soilMoisture",
-  "debugruntime",
-  "debugsigstrength"
-};
-
 // Setup feeds for publishing.
-Adafruit_MQTT_Publish temperaturec_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.temperaturec");
+adafruitIO_feed_setup();
 
-Adafruit_MQTT_Publish temperaturef_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.temperaturef");
+// Adafruit_MQTT_Publish temperaturec_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.temperaturec");
 
-Adafruit_MQTT_Publish humidity_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.humidity");
+// Adafruit_MQTT_Publish temperaturef_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.temperaturef");
 
-Adafruit_MQTT_Publish pressure_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.pressure");
+// Adafruit_MQTT_Publish humidity_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.humidity");
 
-Adafruit_MQTT_Publish soilmoisture_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.soilmoisture");
+// Adafruit_MQTT_Publish pressure_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.pressure");
 
-Adafruit_MQTT_Publish runtime_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.debugruntime");
+// Adafruit_MQTT_Publish soilmoisture_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.soilmoisture");
 
-Adafruit_MQTT_Publish sigstrength_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.debugsigstrength");
+// Adafruit_MQTT_Publish runtime_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.debugruntime");
+
+// Adafruit_MQTT_Publish sigstrength_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.debugsigstrength");
 
 void MQTT_connect();
+
 
 void setup() {
   #ifdef DEBUG
@@ -111,6 +113,46 @@ void loop() {
   debugPrintln("Entering deep sleep...");
   // eInk Display can only refresh 1/180 seconds, so deepSleeping for at least that amount of time
   deepSleep(200);  
+}
+
+void adafruitIO_feed_setup() {
+
+  char *adafruitIO_Feeds[7] = {
+  "temperaturec",
+  "temperaturef",
+  "humidity",
+  "pressure",
+  "soilMoisture",
+  "debugruntime",
+  "debugsigstrength"
+  };
+
+  String feedBasename = "/feeds/weather-station.";
+  for(int i = 0; i < sizeof(adafruitIO_Feeds) / sizeof(adafruitIO_Feeds[0]); i++) {
+    debugPrintln("Setting up AdafruitIO Feed: ")
+    debugPrintln(feedBasename + adafruitIO_Feeds[i]);
+   
+   Adafruit_MQTT_Publish sigstrength_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME feedBasename + adafruitIO_Feeds[i]);
+  }
+}
+
+float newreadEnvironmentSensor() {
+  // Initializing the environment sensor
+  Adafruit_BME280 bme;  // Using I2C Connections
+  bme.begin(&Wire);
+
+  sensorReadings[0] = bme.readTemperature();
+  sensorReadings[1] = bme.readHumidity();
+  sensorReadings[2] = bme.readPressure();
+
+  debugPrint("Temperature C: ");
+  debugPrintln(sensorReadings[0]);
+
+  debugPrint("Humidity: ");
+  debugPrintln(sensorReadings[1]);
+
+  debugPrint("Pressure in Millibar: ");
+  debugPrintln(sensorReadings[2] / 100);
 }
 
 float readEnvironmentSensor(String sensorType){
