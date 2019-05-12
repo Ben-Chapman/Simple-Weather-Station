@@ -21,35 +21,35 @@
 */
 
 // Creating the array to be used for environmental sensor readings
-float sensorReadings[5] = {};
+
+float measurementData[4] = {};
+
+#define TEMPERATURE measurementData[0]
+#define HUMIDITY measurementData[1]
+#define PRESSURE measurementData[2]
+#define SOIL_MOISTURE measurementData[3]
 
 WiFiClient client;
-
-
-
 
 // Setup the MQTT client class
 Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO_KEY);
 
-// Setup feeds for publishing.
-adafruitIO_feed_setup();
+// Setup feeds for publishing
+Adafruit_MQTT_Publish temperaturec_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.temperaturec");
 
-// Adafruit_MQTT_Publish temperaturec_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.temperaturec");
+Adafruit_MQTT_Publish temperaturef_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.temperaturef");
 
-// Adafruit_MQTT_Publish temperaturef_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.temperaturef");
+Adafruit_MQTT_Publish humidity_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.humidity");
 
-// Adafruit_MQTT_Publish humidity_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.humidity");
+Adafruit_MQTT_Publish pressure_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.pressure");
 
-// Adafruit_MQTT_Publish pressure_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.pressure");
+Adafruit_MQTT_Publish soilmoisture_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.soilmoisture");
 
-// Adafruit_MQTT_Publish soilmoisture_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.soilmoisture");
+Adafruit_MQTT_Publish runtime_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.debugruntime");
 
-// Adafruit_MQTT_Publish runtime_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.debugruntime");
-
-// Adafruit_MQTT_Publish sigstrength_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.debugsigstrength");
+Adafruit_MQTT_Publish sigstrength_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.debugsigstrength");
 
 void MQTT_connect();
-
 
 void setup() {
   #ifdef DEBUG
@@ -83,22 +83,16 @@ void setup() {
 
 void loop() {
   // Read measurements from enviromental sensor
-  float t = readEnvironmentSensor("temperature");  // Degrees C
-  float h = readEnvironmentSensor("humidity");  // % Humidity
-  float p = readEnvironmentSensor("pressure");  // Barometric pressure
-  /*
-  The soil moisture sensor returns high values in dry soil (<=786), and progressively lower values for wet soil (>=534). Inversing these values to make them a little more human platable. Wet == bigger number, dry smaller.
-  */
-  int sm = 1000 - analogRead(A0);  // Soil Moisture
+  readEnvironmentSensors();
 
   // Adafruit.io Publishing
   MQTT_connect();
 
-  temperaturec_feed.publish(int(t));  // Degrees C
-  temperaturef_feed.publish(int((t * 1.8)+ 32));  // Degrees F
-  humidity_feed.publish(int(h));
-  pressure_feed.publish(p / 100);  // Millibar
-  soilmoisture_feed.publish(sm);
+  temperaturec_feed.publish(int(TEMPERATURE));  // Degrees C
+  temperaturef_feed.publish(int((TEMPERATURE * 1.8)+ 32));  // Degrees F
+  humidity_feed.publish(int(HUMIDITY));
+  pressure_feed.publish(PRESSURE / 100);  // Millibar
+  soilmoisture_feed.publish(int(SOIL_MOISTURE));
   runtime_feed.publish(int(millis()));
   sigstrength_feed.publish(WiFi.RSSI());
 
@@ -108,86 +102,40 @@ void loop() {
 
   // eInk Display
   debugPrintln("Now writing display");
-  write_eink_display(t, h, p, sm);
+  write_eink_display();
 
   debugPrintln("Entering deep sleep...");
   // eInk Display can only refresh 1/180 seconds, so deepSleeping for at least that amount of time
   deepSleep(200);  
 }
 
-void adafruitIO_feed_setup() {
-
-  char *adafruitIO_Feeds[7] = {
-  "temperaturec",
-  "temperaturef",
-  "humidity",
-  "pressure",
-  "soilMoisture",
-  "debugruntime",
-  "debugsigstrength"
-  };
-
-  String feedBasename = "/feeds/weather-station.";
-  for(int i = 0; i < sizeof(adafruitIO_Feeds) / sizeof(adafruitIO_Feeds[0]); i++) {
-    debugPrintln("Setting up AdafruitIO Feed: ")
-    debugPrintln(feedBasename + adafruitIO_Feeds[i]);
-   
-   Adafruit_MQTT_Publish sigstrength_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME feedBasename + adafruitIO_Feeds[i]);
-  }
-}
-
-float newreadEnvironmentSensor() {
+float readEnvironmentSensors() {
   // Initializing the environment sensor
   Adafruit_BME280 bme;  // Using I2C Connections
   bme.begin(&Wire);
 
-  sensorReadings[0] = bme.readTemperature();
-  sensorReadings[1] = bme.readHumidity();
-  sensorReadings[2] = bme.readPressure();
+  TEMPERATURE = bme.readTemperature();
+  HUMIDITY = bme.readHumidity();
+  PRESSURE = bme.readPressure();
+  /*
+  The soil moisture sensor returns high values in dry soil (<=786), and progressively lower values for wet soil (>=534). Inversing these values to make them a little more human platable. Wet == bigger number, dry smaller.
+  */
+  SOIL_MOISTURE = 1000 - analogRead(A0);  // Soil Moisture
 
   debugPrint("Temperature C: ");
-  debugPrintln(sensorReadings[0]);
+  debugPrintln(TEMPERATURE);
 
   debugPrint("Humidity: ");
-  debugPrintln(sensorReadings[1]);
+  debugPrintln(HUMIDITY);
 
   debugPrint("Pressure in Millibar: ");
-  debugPrintln(sensorReadings[2] / 100);
+  debugPrintln(PRESSURE / 100);
+
+  debugPrint("Soil Moisture Level: ");
+  debugPrintln(SOIL_MOISTURE);
 }
 
-float readEnvironmentSensor(String sensorType){
-  // Initializing the environment sensor
-  Adafruit_BME280 bme;  // Using I2C Connections
-  bme.begin(&Wire);
-
-  if (sensorType == "temperature" ) {
-   float t = bme.readTemperature();  // Degrees C
-   debugPrint("Temperature C: ");
-   debugPrintln(t);
-   return t;
-}
-  else if (sensorType == "humidity") {
-    float h = bme.readHumidity();
-    debugPrint("Humidity: ");
-    debugPrintln(h);
-    return h;
-  }
-  else if (sensorType == "pressure") {
-    // Pressure is returned in Pascals.
-    // 100 Pascal == 1 hPa
-    // 1 inHg == 3386.39 Pascal
-    float p = (bme.readPressure());  // Pascals
-    debugPrint("Pressure in Millibar: ");
-    debugPrintln(p / 100);
-    return p;
-  }
-}
-
-void write_eink_display(
-  float temperature,
-  float humidity,
-  float pressure,
-  int soilMoisture) {
+void write_eink_display() {
 
   //eInk Display Setup
   #define EPD_CS     5
@@ -201,7 +149,7 @@ void write_eink_display(
 
   #define BLACK_TEXT EPD_BLACK
   #define RED_TEXT EPD_RED
-
+  
   // Initial display configuration
   epd.begin();
   epd.setRotation(2); // Landscape
@@ -214,26 +162,25 @@ void write_eink_display(
   epd.setTextColor(RED_TEXT);
   epd.print("T: ");
   epd.setTextColor(BLACK_TEXT);
-  epd.print(temperature); epd.println(" C");
+  epd.print(TEMPERATURE); epd.println(" C");
 
   epd.setCursor(2,45);
   epd.setTextColor(RED_TEXT);
   epd.print("H: ");
   epd.setTextColor(BLACK_TEXT);
-  epd.print(humidity); epd.println(" %");
+  epd.print(HUMIDITY); epd.println(" %");
 
   epd.setCursor(2,80);
   epd.setTextColor(RED_TEXT);
   epd.print("P: ");
   epd.setTextColor(BLACK_TEXT);
-  epd.print(pressure / 3386.39);  // Inches Mercury
-  epd.println(" inHg");
+  epd.print(PRESSURE / 100);  // Millibar
 
   epd.setCursor(2,115);
   epd.setTextColor(RED_TEXT);
   epd.print("SM: ");
   epd.setTextColor(BLACK_TEXT);
-  epd.print(soilMoisture);
+  epd.print(int(SOIL_MOISTURE));
   epd.print("/466");  // Displaying max value for reference
  
   // Diag info to be displayed at the bottom of the screen
@@ -244,6 +191,8 @@ void write_eink_display(
   epd.print(" | IP: "); epd.print(WiFi.localIP());
 
   epd.display();
+
+  digitalWrite(16, LOW);  // Pulling low to cut power to the EPD
 }
 
 void deepSleep(int sleepTimeInSec) {
@@ -252,8 +201,6 @@ void deepSleep(int sleepTimeInSec) {
   debugPrintln(" seconds");
   ESP.deepSleep(sleepTimeInSec * 1000000);  //ESP.deepSleep needs microseconds
 }
-
-void MQTT_connect();
 
 // Function to connect and reconnect as necessary to the MQTT server.
 // Should be called in the loop function and it will take care if connecting.
@@ -265,7 +212,7 @@ void MQTT_connect() {
     return;
   }
 
-  debugPrint("Connecting to MQTT... ");
+  debugPrint("Connecting to MQTT ... ");
 
   uint8_t retries = 3;
   while ((ret = mqtt.connect()) != 0) { // connect will return 0 for connected
