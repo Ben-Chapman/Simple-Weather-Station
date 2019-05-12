@@ -174,7 +174,7 @@ void write_eink_display() {
   epd.setTextColor(RED_TEXT);
   epd.print("P: ");
   epd.setTextColor(BLACK_TEXT);
-  epd.print(PRESSURE / 100);  // Millibar
+  epd.print(int(PRESSURE / 100)); epd.println(" Mb");  // Millibar
 
   epd.setCursor(2,115);
   epd.setTextColor(RED_TEXT);
