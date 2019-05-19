@@ -100,9 +100,29 @@ void loop() {
   mqtt.disconnect();
   WiFi.disconnect();  
 
-  // eInk Display
-  debugPrintln("Now writing display");
-  write_eink_display();
+  /*
+  The esp8266 provides for ~nvram via the rtc, which we're using to 
+  store the loop count of this sketch, and only writing to the EPD
+  display every 10th loop, which is every ~33 minutes
+  */
+  byte rtcStore[2];
+  system_rtc_mem_read(65, rtcStore, 2); //offset is 65
+
+  debugPrint("Existing value in rtc is: ");
+  debugPrintln(*rtcStore);
+
+  if (*rtcStore % 10 == 0)
+  {
+    debugPrintln("...Writing display now...");
+    // Writing to the EPD
+    write_eink_display();
+  }
+
+  (*rtcStore)++;  //increment the value
+  debugPrint("New value in rtc is: ");
+  debugPrintln(*rtcStore);
+
+  system_rtc_mem_write(65, rtcStore, 2); //offset is 65
 
   debugPrintln("Entering deep sleep...");
   // eInk Display can only refresh 1/180 seconds, so deepSleeping for at least that amount of time
