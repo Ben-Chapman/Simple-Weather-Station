@@ -59,16 +59,22 @@ void setup() {
 
   // Connect to WiFi
   unsigned long startTime = millis();
+  IPAddress ip(10, 0, 0, 201);
+  IPAddress gateway(10, 0, 0, 1);
+  IPAddress subnet(255, 255, 255, 0);
+  IPAddress DNS(10, 0, 0, 100);
+  int32_t chan = 11;  // Pre-defined (static) WiFi channel
 
-  int status = WL_IDLE_STATUS;
-  while (status != WL_CONNECTED) {
-    debugPrint("Attempting to connect to WPA SSID: ");
-    debugPrintln(ssid);
+  WiFi.config(ip, gateway, subnet, DNS);
+  delay(100);
+  WiFi.begin(ssid, pass, chan);
 
-    status = WiFi.begin(ssid, pass);
-
-    // wait n seconds for connection
-    delay(15000);
+  // int status = WL_IDLE_STATUS;
+  debugPrint("Connecting to ");
+  debugPrintln(ssid);
+  while (WiFi.status() != WL_CONNECTED) {
+    debugPrint(".");
+    delay(500);
  }
 
   unsigned long finishTime = millis();
@@ -96,14 +102,10 @@ void loop() {
   runtime_feed.publish(int(millis()));
   sigstrength_feed.publish(WiFi.RSSI());
 
-  // Disconnect network to save power while writing display
-  mqtt.disconnect();
-  WiFi.disconnect();  
-
   /*
   The esp8266 provides for ~nvram via the rtc, which we're using to 
   store the loop count of this sketch, and only writing to the EPD
-  display every 10th loop, which is every ~33 minutes
+  display every 20th loop, which is every ~63 minutes
   */
   byte rtcStore[2];
   system_rtc_mem_read(65, rtcStore, 2); //offset is 65
@@ -111,7 +113,7 @@ void loop() {
   debugPrint("Existing value in rtc is: ");
   debugPrintln(*rtcStore);
 
-  if (*rtcStore % 10 == 0)
+  if (*rtcStore % 20 == 0)
   {
     debugPrintln("...Writing display now...");
     // Writing to the EPD
@@ -124,9 +126,11 @@ void loop() {
 
   system_rtc_mem_write(65, rtcStore, 2); //offset is 65
 
+  delay(2000);
   debugPrintln("Entering deep sleep...");
-  // eInk Display can only refresh 1/180 seconds, so deepSleeping for at least that amount of time
-  deepSleep(200);  
+
+  // Sleeping
+  deepSleep(300);  
 }
 
 float readEnvironmentSensors() {
@@ -219,7 +223,7 @@ void deepSleep(int sleepTimeInSec) {
   debugPrint("Deep sleeping for ");
   debugPrint(sleepTimeInSec);
   debugPrintln(" seconds");
-  ESP.deepSleep(sleepTimeInSec * 1000000);  //ESP.deepSleep needs microseconds
+  ESP.deepSleepInstant(sleepTimeInSec * 1000000);  //ESP.deepSleep needs microseconds
 }
 
 // Function to connect and reconnect as necessary to the MQTT server.
