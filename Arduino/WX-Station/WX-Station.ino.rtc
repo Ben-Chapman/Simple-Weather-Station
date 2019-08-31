@@ -1,0 +1,51 @@
+
+
+#include <ESP8266WiFi.h>
+#include "config.h"
+
+int runCount = 0;
+void setup() {
+ Serial.begin(115200);
+ Serial.println("Serial is working.");
+
+  
+ 
+}
+
+void loop() {
+  byte rtcStore[2];
+  system_rtc_mem_read(65, rtcStore, 2); //offset is 65
+
+  debugPrint("Existing value in rtc is: ");
+  debugPrintln(*rtcStore);
+
+  if (*rtcStore % 10 == 0)
+  {
+    debugPrintln("...Writing display now...");
+  }
+  else {
+    debugPrintln("Nothing");
+  }
+
+  (*rtcStore)++;  //increment the value
+  debugPrint("new value = ");
+  debugPrintln(*rtcStore);
+
+  system_rtc_mem_write(65, rtcStore, 2); //offset is 65
+
+  debugPrintln("Entering deep sleep...");
+  // eInk Display can only refresh 1/180 seconds, so deepSleeping for at least that amount of time
+  deepSleep(2);  
+  
+}
+
+void deepSleep(int sleepTimeInSec) {
+  debugPrint("Deep sleeping for ");
+  debugPrint(sleepTimeInSec);
+  debugPrintln(" seconds");
+  ESP.deepSleep(sleepTimeInSec * 1000000);  //ESP.deepSleep needs microseconds
+}
+
+int rtcInterface() {
+  
+}
