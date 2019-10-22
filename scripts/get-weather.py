@@ -1,6 +1,6 @@
 import json
 import os
-import time
+
 from Adafruit_IO import Client, Data, Feed
 import requests
 
@@ -60,22 +60,23 @@ def get_weather(latitude, longitude):
 def update_adafruitio(weather_forecast):
     aio_username = os.environ['AIO_USERNAME']
     aio_api_key = os.environ['AIO_API_KEY']
-    aio_feed_name = 'weather-station.darksky-forecast'
-
+    aio_feeds = [
+        'weather-station.darksky-minutely',
+        'weather-station.darksky-hourly'
+    ]
+    
     # Setting up the aio connection
     aio = Client(aio_username, aio_api_key)
 
-    # First we need to retrieve a list of all forecast data values
-    d = aio.data(aio_feed_name)
-
-    # Now delete the existing values as we don't need to persist them
-    for data in d:
-       aio.delete(aio_feed_name, data.id)
-
-    # Send the weather data to Adafruit
-    for w in weather_forecast:
-        aio.send_data(aio_feed_name, w)
-        time.sleep(1)
+    # Retrieving a list of all forecast data values and deleting them as we don't need that data to persist
+    for feed in aio_feeds:
+        d = aio.data(feed)
+        for data in d:
+            aio.delete(feed, data.id)
+        
+    # Now send the forecasts to Adafruit
+    for i in range(0,2):  # 0 == Minutely, 1 == Hourly
+        aio.send_data(aio_feeds[i], weather_forecast[i])
 
 w = get_weather(latitude='40.7369597',longitude='-74.3029359')
 
