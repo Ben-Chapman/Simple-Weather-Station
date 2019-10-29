@@ -4,10 +4,6 @@
 
 #include <ESP8266WiFi.h>
 
-// EPD Support
-#include <Adafruit_GFX.h>
-#include <Adafruit_EPD.h>
-
 // Env sensor Support
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
@@ -102,31 +98,7 @@ void loop() {
   runtime_feed.publish(int(millis()));
   sigstrength_feed.publish(WiFi.RSSI());
 
-  /*
-  The esp8266 provides for ~nvram via the rtc, which we're using to 
-  store the loop count of this sketch, and only writing to the EPD
-  display every 20th loop, which is every ~63 minutes
-  */
-  byte rtcStore[2];
-  system_rtc_mem_read(65, rtcStore, 2); //offset is 65
-
-  debugPrint("Existing value in rtc is: ");
-  debugPrintln(*rtcStore);
-
-  if (*rtcStore % 20 == 0)
-  {
-    debugPrintln("...Writing display now...");
-    // Writing to the EPD
-    write_eink_display();
-  }
-
-  (*rtcStore)++;  //increment the value
-  debugPrint("New value in rtc is: ");
-  debugPrintln(*rtcStore);
-
-  system_rtc_mem_write(65, rtcStore, 2); //offset is 65
-
-  delay(2000);
+  delay(1000);
   debugPrintln("Entering deep sleep...");
 
   // Sleeping
@@ -157,66 +129,6 @@ float readEnvironmentSensors() {
 
   debugPrint("Soil Moisture Level: ");
   debugPrintln(SOIL_MOISTURE);
-}
-
-void write_eink_display() {
-
-  //eInk Display Setup
-  #define EPD_CS     5
-  #define EPD_DC     0
-  #define SRAM_CS    4
-  #define EPD_RESET -1 // Shared with Arduino reset pin
-  #define EPD_BUSY  -1 // Don't use a pin
-
-  // 1.54" Adafruit Tri-Color Display
-  Adafruit_IL0373 epd(152, 152 ,EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY);
-
-  #define BLACK_TEXT EPD_BLACK
-  #define RED_TEXT EPD_RED
-  
-  // Initial display configuration
-  epd.begin();
-  epd.setRotation(2); // Landscape
-  epd.clearBuffer();
-  epd.setTextWrap(false);
-  epd.setCursor(2,0);
-  epd.setTextSize(2);
-
-  epd.setCursor(2,10);
-  epd.setTextColor(RED_TEXT);
-  epd.print("T: ");
-  epd.setTextColor(BLACK_TEXT);
-  epd.print(TEMPERATURE); epd.println(" C");
-
-  epd.setCursor(2,45);
-  epd.setTextColor(RED_TEXT);
-  epd.print("H: ");
-  epd.setTextColor(BLACK_TEXT);
-  epd.print(HUMIDITY); epd.println(" %");
-
-  epd.setCursor(2,80);
-  epd.setTextColor(RED_TEXT);
-  epd.print("P: ");
-  epd.setTextColor(BLACK_TEXT);
-  epd.print(int(PRESSURE / 100)); epd.println(" Mb");  // Millibar
-
-  epd.setCursor(2,115);
-  epd.setTextColor(RED_TEXT);
-  epd.print("SM: ");
-  epd.setTextColor(BLACK_TEXT);
-  epd.print(int(SOIL_MOISTURE));
-  epd.print("/466");  // Displaying max value for reference
- 
-  // Diag info to be displayed at the bottom of the screen
-  epd.setTextSize(1.5);
-  epd.setTextColor(BLACK_TEXT);
-  epd.setCursor(2,137);
-  epd.print("Sig: "); epd.print(WiFi.RSSI());
-  epd.print(" | IP: "); epd.print(WiFi.localIP());
-
-  epd.display();
-
-  digitalWrite(16, LOW);  // Pulling low to cut power to the EPD
 }
 
 void deepSleep(int sleepTimeInSec) {
