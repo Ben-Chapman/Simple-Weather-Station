@@ -3,20 +3,17 @@
 
 #include <ESP8266WiFi.h>
 
+// Sensors support
 #include <Adafruit_Sensor.h>
-#include "Adafruit_BMP3XX.h"
+#include <Adafruit_BMP3XX.h>
 #include "Adafruit_SHT31.h"
 
 // Adafruit.io Support
-#include "Adafruit_MQTT.h"
+// #include "Adafruit_MQTT.h"
 #include "Adafruit_MQTT_Client.h"
 
-// Timing
+// Instrumentation
 unsigned long sketchStartTime = millis();
-
-Adafruit_SHT31 sht31 = Adafruit_SHT31();
-
-Adafruit_BMP3XX bmp; // I2C
 
 /*
   Global configs
@@ -107,6 +104,9 @@ void loop() {
 
 float readEnvironmentSensors() {
     // Initializing the sensors
+    Adafruit_SHT31 sht31 = Adafruit_SHT31();
+    Adafruit_BMP3XX bmp; // I2C
+
     sht31.begin();
     bmp.begin();
 
@@ -136,9 +136,9 @@ void deepSleep(int sleepTimeInSec) {
 }
 
 // Function to connect and reconnect as necessary to the MQTT server.
-// Should be called in the loop function and it will take care if connecting.
+// Should be called in the loop function and it will take care of connecting.
 void MQTT_connect() {
-  int8_t ret;
+  int mqttConnectStatus;
 
   // Stop if already connected.
   if (mqtt.connected()) {
@@ -147,12 +147,13 @@ void MQTT_connect() {
 
   debugPrint("Connecting to MQTT ... ");
 
-  int retries = 3;
-  while ((ret = mqtt.connect()) != 0) { // connect will return 0 for connected
-       debugPrintln(mqtt.connectErrorString(ret));
-       debugPrintln("Retrying MQTT connection in 5 seconds...");
+  int retries = 1;
+
+  while ((mqttConnectStatus = mqtt.connect()) != 0) { // connect will return 0 for connected
+       debugPrintln(mqtt.connectErrorString(mqttConnectStatus));
+       debugPrintln("Retrying MQTT connection in 1 second...");
        mqtt.disconnect();
-       delay(5000);  // wait 5 seconds
+       delay(1000);  // wait 5 seconds
        retries--;
        if (retries == 0) {
          // basically die and wait for WDT to reset me
