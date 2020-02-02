@@ -11,6 +11,9 @@
 #include "Adafruit_MQTT.h"
 #include "Adafruit_MQTT_Client.h"
 
+// Timing
+unsigned long sketchStartTime = millis();
+
 Adafruit_SHT31 sht31 = Adafruit_SHT31();
 
 Adafruit_BMP3XX bmp; // I2C
@@ -49,7 +52,7 @@ void setup() {
     #endif
 
     // Connect to WiFi
-    unsigned long startTime = millis();
+    unsigned long wifiStartTime = millis();
     IPAddress ip(10, 0, 0, 202);
     IPAddress gateway(10, 0, 0, 1);
     IPAddress subnet(255, 255, 255, 0);
@@ -57,25 +60,23 @@ void setup() {
     int32_t chan = 11;  // Pre-defined (static) WiFi channel
 
     WiFi.config(ip, gateway, subnet, DNS);
-    delay(50);
+    delay(10);
     WiFi.begin(ssid, pass, chan);
 
-    // int status = WL_IDLE_STATUS;
     debugPrint("Connecting to ");
     debugPrintln(ssid);
     while (WiFi.status() != WL_CONNECTED) {
         debugPrint(".");
-        delay(500);
+        delay(100);
     }
 
-    unsigned long finishTime = millis();
+    unsigned long wifiEndTime = millis();
 
     debugPrint("You're connected to the network: ");
     debugPrintln(WiFi.localIP());
     debugPrint("WiFi connection took ");
-    unsigned long timeTaken = ((finishTime - startTime) / 1000);
-    debugPrint(timeTaken);
-    debugPrintln(" seconds");
+    debugPrint(wifiEndTime - wifiStartTime);
+    debugPrintln(" ms");
 }
 
 void loop() {
@@ -83,7 +84,7 @@ void loop() {
     readEnvironmentSensors();
 
     // Adafruit.io Publishing
-    // MQTT_connect();
+    MQTT_connect();
 
     // temperaturec_feed.publish(int(TEMPERATURE));  // Degrees C
     // temperaturef_feed.publish(int((TEMPERATURE * 1.8)+ 32));  // Degrees F
@@ -93,32 +94,15 @@ void loop() {
     // runtime_feed.publish(int(millis()));
     // sigstrength_feed.publish(WiFi.RSSI());
 
-    delay(1000);
-    // debugPrintln("Entering deep sleep...");
-
+    // delay(1000);
+    debugPrintln("Entering deep sleep...");
+    unsigned long sketchEndTime = millis();
+    debugPrint("Total Sketch runtime = ");
+    debugPrint(sketchEndTime - sketchStartTime);
+    debugPrintln(" ms");
     // Sleeping
-    // deepSleep(300);  
-
-
-
-
-
-    // Serial.print("Temperature from BMP = ");
-    // Serial.print(bmp.readTemperature());
-    // Serial.println(" *C");
-
-    // Serial.print("Temp *C from SenseIron = ");
-    // Serial.println(t);
-
-    // Serial.print("Hum. % from SenseIron = ");
-    // Serial.println(h);
-
-    // Serial.print("Pressure from BMP = ");
-    // Serial.print(bmp.readPressure() / 100.0);
-    // Serial.println(" hPa");
-
-    // Serial.println();
-    // delay(2000);
+    // deepSleep(300); 
+    deepSleep(30);
 }
 
 float readEnvironmentSensors() {
@@ -127,7 +111,6 @@ float readEnvironmentSensors() {
     bmp.begin();
 
     // Set up oversampling and filter initialization
-    bmp.setTemperatureOversampling(BMP3_OVERSAMPLING_8X);
     bmp.setPressureOversampling(BMP3_OVERSAMPLING_4X);
     bmp.setIIRFilterCoeff(BMP3_IIR_FILTER_COEFF_3);
 
@@ -164,7 +147,7 @@ void MQTT_connect() {
 
   debugPrint("Connecting to MQTT ... ");
 
-  uint8_t retries = 3;
+  int retries = 3;
   while ((ret = mqtt.connect()) != 0) { // connect will return 0 for connected
        debugPrintln(mqtt.connectErrorString(ret));
        debugPrintln("Retrying MQTT connection in 5 seconds...");
