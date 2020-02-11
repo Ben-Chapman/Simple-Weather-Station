@@ -235,12 +235,12 @@ bool Adafruit_BMP3XX::performReading(void) {
   uint8_t sensor_comp = 0;
 
   /* Select the pressure and temperature sensor to be enabled */
-  the_sensor.settings.temp_en = BMP3_ENABLE;
-  settings_sel |= BMP3_TEMP_EN_SEL;
-  sensor_comp |= BMP3_TEMP;
-  if (_tempOSEnabled) {
-     settings_sel |= BMP3_TEMP_OS_SEL;
-  }
+  // the_sensor.settings.temp_en = BMP3_ENABLE;
+  // settings_sel |= BMP3_TEMP_EN_SEL;
+  // sensor_comp |= BMP3_TEMP;
+  // if (_tempOSEnabled) {
+  //    settings_sel |= BMP3_TEMP_OS_SEL;
+  // }
 
   the_sensor.settings.press_en = BMP3_ENABLE;
   settings_sel |= BMP3_PRESS_EN_SEL;
@@ -284,7 +284,7 @@ bool Adafruit_BMP3XX::performReading(void) {
   rslt = bmp3_get_sensor_data(sensor_comp, &data, &the_sensor);
 
   /* Save the temperature and pressure data */
-  temperature = data.temperature;
+  // temperature = data.temperature;
   pressure = data.pressure;
   if (rslt != BMP3_OK)
     return false;
