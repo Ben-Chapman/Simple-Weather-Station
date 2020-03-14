@@ -40,48 +40,49 @@ void setup() {
     #ifdef DEBUG
         Serial.begin(115200);
     #endif
-
 }
 
 
 void loop() {
-    // Read battery voltage level
-    // Fully charged battery == 4.190V
+    // Read battery voltage level. Fully charged battery == 4.190V
     float batteryVoltage = analogRead(A0) * (4.190 / 1024.0);
     debugPrint("Battery Voltage: ");
     debugPrintln(batteryVoltage);
     debugPrintln(analogRead(A0));
+
     // Read measurements from enviromental sensors
     debugPrintln("Reading sensors...");
     readEnvironmentSensors();
-
     
     // Enable WiFi
     wifiState(1);
 
-    // Adafruit.io Publishing
-    MQTT_connect();
+    // if (WiFi.status() == WL_CONNECTED) {
+        MQTT_connect();
 
-    // Publish Feed Data
-    batteryvoltage_feed.publish(batteryVoltage);
-    temperaturec_feed.publish(int(TEMPERATURE));  // Degrees C
-    temperaturef_feed.publish(int((TEMPERATURE * 1.8)+ 32));  // Degrees F
-    humidity_feed.publish(int(HUMIDITY));
-    pressure_feed.publish(PRESSURE / 100);  // Millibar
-    sigstrength_feed.publish(WiFi.RSSI());
+        // Publish Feed Data to Adafruit.io
+        batteryvoltage_feed.publish(batteryVoltage);
+        temperaturec_feed.publish(int(TEMPERATURE));  // Degrees C
+        temperaturef_feed.publish(int((TEMPERATURE * 1.8)+ 32));  // Degrees F
+        humidity_feed.publish(int(HUMIDITY));
+        pressure_feed.publish(PRESSURE / 100);  // Millibar
+        sigstrength_feed.publish(WiFi.RSSI());
 
-    unsigned long sketchEndTime = millis();
-    int sketchRunTime = (sketchEndTime - sketchStartTime);
+        unsigned long sketchEndTime = millis();
+        int sketchRunTime = (sketchEndTime - sketchStartTime);
 
-    debugPrint("Total Sketch runtime = ");
-    debugPrint(sketchRunTime);
-    debugPrintln(" ms");
+        debugPrint("Total Sketch runtime = ");
+        debugPrint(sketchRunTime);
+        debugPrintln(" ms");
 
-    runtime_feed.publish(sketchRunTime);
-    delay(500);
+        runtime_feed.publish(sketchRunTime);
+        delay(250);
+    // }
 
     // Shutdown WiFi
     wifiState(0);
+ 
+    delay(50);
 
     debugPrintln("Entering deep sleep...");
     deepSleep(300);
@@ -95,11 +96,11 @@ float readEnvironmentSensors() {
     bmp.begin();
     sht31.begin(0x44);
 
-//     // Set up oversampling and filter initialization
-    // bmp.setPressureOversampling(BMP3_OVERSAMPLING_16X);
-    // bmp.setIIRFilterCoeff(BMP3_IIR_FILTER_COEFF_1);
+    // Set up oversampling and filter initialization
+    bmp.setPressureOversampling(BMP3_OVERSAMPLING_16X);
+    bmp.setIIRFilterCoeff(BMP3_IIR_FILTER_COEFF_1);
 
-    bmp.setSensorForcedModeSettings(BMP3_NO_OVERSAMPLING, BMP3_OVERSAMPLING_16X, BMP3_IIR_FILTER_COEFF_1);
+    // bmp.setSensorForcedModeSettings(BMP3_NO_OVERSAMPLING, BMP3_OVERSAMPLING_16X, BMP3_IIR_FILTER_COEFF_1);
 
     TEMPERATURE = sht31.readTemperature();
     HUMIDITY = sht31.readHumidity();
@@ -108,7 +109,7 @@ float readEnvironmentSensors() {
     bmp.performReading();
     PRESSURE = bmp.pressure;
 //     // put the sensor in sleep mode
-    bmp.setSensorInSleepMode();
+    // bmp.setSensorInSleepMode();
   
     // PRESSURE = bmp.pressure;
     debugPrint("Temperature C: ");
@@ -130,14 +131,16 @@ void deepSleep(int sleepTimeInSec) {
 }
 
 
-void wifiState(int stateType) {
-    if (stateType == 0) {
+void wifiState(int stateValue) {
+    if (stateValue == 0) {
       // Shutdown WiFi chip for power savings
+      debugPrintln("Shutting down WiFi")
       WiFi.mode(WIFI_OFF);
       WiFi.forceSleepBegin();
   }
 
-  if (stateType == 1) {
+  if (stateValue == 1) {
+      debugPrintln("Waking up WiFi")
       // Wake up the WiFi chip
       WiFi.forceSleepWake();
 
@@ -147,7 +150,7 @@ void wifiState(int stateType) {
       IPAddress gateway(10, 0, 0, 1);
       IPAddress subnet(255, 255, 255, 0);
       IPAddress DNS(10, 0, 0, 100);
-      int chan = 11;  // Pre-defined (static) WiFi channel
+      int chan = 7;  // Pre-defined (static) WiFi channel
       unsigned char bssid[18] = { 0x9A, 0x3B, 0xAD, 0xB4, 0xF6, 0x3A }; // Hardcoding the AP's MAC addr
 
       WiFi.config(ip, gateway, subnet, DNS);
@@ -157,13 +160,10 @@ void wifiState(int stateType) {
       // Disable the WiFi persistence.  The ESP8266 will not load and save WiFi settings in flash memory.
       WiFi.persistent(false);
       WiFi.begin(ssid, pass, chan, bssid, true);
-
       debugPrint("Connecting to ");
       debugPrintln(ssid);
-      while (WiFi.status() != WL_CONNECTED) {
-          debugPrint(".");
-          delay(50);
-      }
+      debugPrint(".");
+      delay(50);
   }
 }
 
@@ -179,14 +179,14 @@ void MQTT_connect() {
 
   debugPrint("Connecting to MQTT ... ");
 
-  int retries = 1;
+  int mqttRetries = 1;
 
   while ((mqttConnectStatus = mqtt.connect()) != 0) { // connect will return 0 for connected
        debugPrintln(mqtt.connectErrorString(mqttConnectStatus));
        debugPrintln("Retrying MQTT connection in 1 second...");
        mqtt.disconnect();
-       delay(1000);  // wait 5 seconds
-       retries--;
+       delay(1000);
+       mqttRetries--;
   }
   debugPrintln("MQTT Connected!");
 }
