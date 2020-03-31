@@ -1,147 +1,179 @@
-#include <SPI.h>
 #include <Wire.h>
 #include "config.h"
 
 #include <ESP8266WiFi.h>
 
-// Env sensor Support
+// Sensors support
 #include <Adafruit_Sensor.h>
-#include <Adafruit_BME280.h>
+#include "Adafruit_BMP3XX.h"
+#include "Adafruit_SHT31.h"
 
 // Adafruit.io Support
-#include "Adafruit_MQTT.h"
 #include "Adafruit_MQTT_Client.h"
 
-/*
-  Global configs
-*/
+// Instrumentation
+unsigned long sketchStartTime = millis();
 
 // Creating the array to be used for environmental sensor readings
-
-float measurementData[4] = {};
-
+float measurementData[3] = {};
 #define TEMPERATURE measurementData[0]
 #define HUMIDITY measurementData[1]
 #define PRESSURE measurementData[2]
-#define SOIL_MOISTURE measurementData[3]
-
-WiFiClient client;
 
 // Setup the MQTT client class
+WiFiClient client;
 Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO_KEY);
 
 // Setup feeds for publishing
 Adafruit_MQTT_Publish temperaturec_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.temperaturec");
-
 Adafruit_MQTT_Publish temperaturef_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.temperaturef");
-
 Adafruit_MQTT_Publish humidity_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.humidity");
-
 Adafruit_MQTT_Publish pressure_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.pressure");
-
-Adafruit_MQTT_Publish soilmoisture_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.soilmoisture");
-
+Adafruit_MQTT_Publish batteryvoltage_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.batteryvoltage");
 Adafruit_MQTT_Publish runtime_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.debugruntime");
-
 Adafruit_MQTT_Publish sigstrength_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.debugsigstrength");
-
-void MQTT_connect();
+Adafruit_MQTT_Publish mqttconncount_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.debugmqttconncount");
 
 void setup() {
-  #ifdef DEBUG
-    Serial.begin(115200);
-    Serial.println("Serial setup is connected");
-  #endif
+    // Start with WiFi disabled to save power
+    wifiState(0); 
 
-  // Connect to WiFi
-  unsigned long startTime = millis();
-  IPAddress ip(10, 0, 0, 201);
-  IPAddress gateway(10, 0, 0, 1);
-  IPAddress subnet(255, 255, 255, 0);
-  IPAddress DNS(10, 0, 0, 100);
-  int32_t chan = 11;  // Pre-defined (static) WiFi channel
-
-  WiFi.config(ip, gateway, subnet, DNS);
-  delay(100);
-  WiFi.begin(ssid, pass, chan);
-
-  // int status = WL_IDLE_STATUS;
-  debugPrint("Connecting to ");
-  debugPrintln(ssid);
-  while (WiFi.status() != WL_CONNECTED) {
-    debugPrint(".");
-    delay(500);
- }
-
-  unsigned long finishTime = millis();
-
-  debugPrint("You're connected to the network: ");
-  debugPrintln(WiFi.localIP());
-  debugPrint("WiFi connection took ");
-  unsigned long timeTaken = ((finishTime - startTime) / 1000);
-  debugPrint(timeTaken);
-  debugPrintln(" seconds");
+    #ifdef DEBUG
+        Serial.begin(115200);
+    #endif
 }
+
 
 void loop() {
-  // Read measurements from enviromental sensor
-  readEnvironmentSensors();
+    // Read battery voltage level. Fully charged battery == 4.190V (841 on A0)
+    float batteryVoltage = analogRead(A0) * (4.190 / 841.0);
+    debugPrint("Battery Voltage: ");
+    debugPrintln(batteryVoltage);
+    debugPrintln(analogRead(A0));
 
-  // Adafruit.io Publishing
-  MQTT_connect();
+    // Read measurements from enviromental sensors
+    debugPrintln("Reading sensors...");
+    readEnvironmentSensors();
+    
+    // Enable WiFi
+    wifiState(1);
 
-  temperaturec_feed.publish(int(TEMPERATURE));  // Degrees C
-  temperaturef_feed.publish(int((TEMPERATURE * 1.8)+ 32));  // Degrees F
-  humidity_feed.publish(int(HUMIDITY));
-  pressure_feed.publish(PRESSURE / 100);  // Millibar
-  soilmoisture_feed.publish(int(SOIL_MOISTURE));
-  runtime_feed.publish(int(millis()));
-  sigstrength_feed.publish(WiFi.RSSI());
+    // if (WiFi.status() == WL_CONNECTED) {
+        MQTT_connect();
 
-  delay(1000);
-  debugPrintln("Entering deep sleep...");
+        // Publish Feed Data to Adafruit.io
+        batteryvoltage_feed.publish(batteryVoltage);
+        temperaturec_feed.publish(int(TEMPERATURE));  // Degrees C
+        temperaturef_feed.publish(int((TEMPERATURE * 1.8)+ 32));  // Degrees F
+        humidity_feed.publish(int(HUMIDITY));
+        pressure_feed.publish(PRESSURE / 100);  // Millibar
+        // sigstrength_feed.publish(int(WiFi.RSSI() + WiFi.channel()));
+        sigstrength_feed.publish(WiFi.channel());  // Hit my limit of Feed topics. Need to reuse for debugging.
 
-  // Sleeping
-  deepSleep(300);  
+
+        unsigned long sketchEndTime = millis();
+        int sketchRunTime = (sketchEndTime - sketchStartTime);
+
+        debugPrint("Total Sketch runtime = ");
+        debugPrint(sketchRunTime);
+        debugPrintln(" ms");
+
+        runtime_feed.publish(sketchRunTime);
+        delay(250);
+    // }
+
+    // Shutdown WiFi
+    wifiState(0);
+ 
+    delay(50);
+
+    debugPrintln("Entering deep sleep...");
+    deepSleep(300);
 }
+
 
 float readEnvironmentSensors() {
-  // Initializing the environment sensor
-  Adafruit_BME280 bme;  // Using I2C Connections
-  bme.begin(&Wire);
+    // Initializing the sensors
+    Adafruit_SHT31 sht31 = Adafruit_SHT31();
+    Adafruit_BMP3XX bmp;
+    bmp.begin();
+    sht31.begin(0x44);
 
-  TEMPERATURE = bme.readTemperature();
-  HUMIDITY = bme.readHumidity();
-  PRESSURE = bme.readPressure();
-  /*
-  The soil moisture sensor returns high values in dry soil (<=786), and progressively lower values for wet soil (>=534). Inversing these values to make them a little more human platable. Wet == bigger number, dry smaller.
-  */
-  SOIL_MOISTURE = 1000 - analogRead(A0);  // Soil Moisture
+    TEMPERATURE = sht31.readTemperature();
+    HUMIDITY = sht31.readHumidity();
 
-  debugPrint("Temperature C: ");
-  debugPrintln(TEMPERATURE);
+    // Pressure readings
+    // TODO: Investigate and fix the need for 2 measurements
+    bmp.performReading();
+    delay(100);
+    bmp.performReading();
 
-  debugPrint("Humidity: ");
-  debugPrintln(HUMIDITY);
+    PRESSURE = bmp.pressure;
+    debugPrint("Temperature C: ");
+    debugPrintln(TEMPERATURE);
 
-  debugPrint("Pressure in Millibar: ");
-  debugPrintln(PRESSURE / 100);
+    debugPrint("Humidity: ");
+    debugPrintln(HUMIDITY);
 
-  debugPrint("Soil Moisture Level: ");
-  debugPrintln(SOIL_MOISTURE);
+    debugPrint("Pressure in Millibar: ");
+    debugPrintln(PRESSURE / 100);
 }
+
 
 void deepSleep(int sleepTimeInSec) {
-  debugPrint("Deep sleeping for ");
-  debugPrint(sleepTimeInSec);
-  debugPrintln(" seconds");
-  ESP.deepSleepInstant(sleepTimeInSec * 1000000);  //ESP.deepSleep needs microseconds
+    debugPrint("Deep sleeping for ");
+    debugPrint(sleepTimeInSec);
+    debugPrintln(" seconds");
+    ESP.deepSleepInstant(sleepTimeInSec * 1000000);  //ESP.deepSleep needs microseconds
 }
 
-// Function to connect and reconnect as necessary to the MQTT server.
-// Should be called in the loop function and it will take care if connecting.
+
+void wifiState(int stateValue) {
+    if (stateValue == 0) {
+      // Shutdown WiFi chip for power savings
+      debugPrintln("Shutting down WiFi")
+      WiFi.mode(WIFI_OFF);
+      WiFi.forceSleepBegin();
+  }
+
+  if (stateValue == 1) {
+      debugPrintln("Waking up WiFi")
+      // Wake up the WiFi chip
+      WiFi.forceSleepWake();
+
+      // Connect to WiFi
+      unsigned long wifiStartTime = millis();
+      IPAddress ip(10, 0, 0, 202);
+      IPAddress gateway(10, 0, 0, 1);
+      IPAddress subnet(255, 255, 255, 0);
+      IPAddress DNS(10, 0, 0, 100);
+      int chan = 14;  // Pre-defined (static) WiFi channel
+      unsigned char bssid[18] = { 0x9A, 0x3B, 0xAD, 0xB4, 0xF6, 0x3A }; // Hardcoding the AP's MAC addr
+
+      WiFi.config(ip, gateway, subnet, DNS);
+
+      WiFi.mode(WIFI_STA);
+
+      // Disable the WiFi persistence.  The ESP8266 will not load and save WiFi settings in flash memory.
+      WiFi.persistent(false);
+      WiFi.begin(ssid, pass, true);
+      debugPrint("Connecting to ");
+      debugPrintln(ssid);
+      
+      while (WiFi.waitForConnectResult() != WL_CONNECTED) {
+        debugPrint(".");
+        delay(50);
+    }
+
+    debugPrint("WiFi Channel: ");
+    debugPrintln(WiFi.channel());
+      }
+}
+
+
 void MQTT_connect() {
-  int8_t ret;
+  // Handles connection to the MQTT server.
+  int mqttConnectStatus;
 
   // Stop if already connected.
   if (mqtt.connected()) {
@@ -150,17 +182,19 @@ void MQTT_connect() {
 
   debugPrint("Connecting to MQTT ... ");
 
-  uint8_t retries = 3;
-  while ((ret = mqtt.connect()) != 0) { // connect will return 0 for connected
-       debugPrintln(mqtt.connectErrorString(ret));
-       debugPrintln("Retrying MQTT connection in 5 seconds...");
+  // Limit the number of connection retries
+  int mqttRetries = 1;
+
+  while ((mqttConnectStatus = mqtt.connect()) != 0 && mqttRetries <= 30) { // connect will return 0 for connected
+       debugPrintln(mqtt.connectErrorString(mqttConnectStatus));
+       debugPrintln("Retrying MQTT connection in 1 second...");
        mqtt.disconnect();
-       delay(5000);  // wait 5 seconds
-       retries--;
-       if (retries == 0) {
-         // basically die and wait for WDT to reset me
-         while (1);
-       }
+       delay(1000);
+       mqttRetries++;
   }
-  debugPrintln("MQTT Connected!");
+  debugPrint("MQTT Connected: ");
+  debugPrint(mqttRetries);
+  debugPrintln(" connection attempts");
+
+  mqttconncount_feed.publish(mqttRetries);
 }
