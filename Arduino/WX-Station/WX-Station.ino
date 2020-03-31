@@ -32,7 +32,7 @@ Adafruit_MQTT_Publish pressure_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME 
 Adafruit_MQTT_Publish batteryvoltage_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.batteryvoltage");
 Adafruit_MQTT_Publish runtime_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.debugruntime");
 Adafruit_MQTT_Publish sigstrength_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.debugsigstrength");
-Adafruit_MQTT_Publish mqttconncount_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.mqttconncount");
+Adafruit_MQTT_Publish mqttconncount_feed = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/weather-station.debugmqttconncount");
 
 void setup() {
     // Start with WiFi disabled to save power
@@ -45,8 +45,8 @@ void setup() {
 
 
 void loop() {
-    // Read battery voltage level. Fully charged battery == 4.190V
-    float batteryVoltage = analogRead(A0) * (4.190 / 1024.0);
+    // Read battery voltage level. Fully charged battery == 4.190V (841 on A0)
+    float batteryVoltage = analogRead(A0) * (4.190 / 841.0);
     debugPrint("Battery Voltage: ");
     debugPrintln(batteryVoltage);
     debugPrintln(analogRead(A0));
@@ -67,7 +67,9 @@ void loop() {
         temperaturef_feed.publish(int((TEMPERATURE * 1.8)+ 32));  // Degrees F
         humidity_feed.publish(int(HUMIDITY));
         pressure_feed.publish(PRESSURE / 100);  // Millibar
-        sigstrength_feed.publish(WiFi.RSSI());
+        // sigstrength_feed.publish(int(WiFi.RSSI() + WiFi.channel()));
+        sigstrength_feed.publish(WiFi.channel());  // Hit my limit of Feed topics. Need to reuse for debugging.
+
 
         unsigned long sketchEndTime = millis();
         int sketchRunTime = (sketchEndTime - sketchStartTime);
@@ -97,10 +99,6 @@ float readEnvironmentSensors() {
     bmp.begin();
     sht31.begin(0x44);
 
-    // Set up oversampling and filter initialization
-    bmp.setPressureOversampling(BMP3_OVERSAMPLING_16X);
-    bmp.setIIRFilterCoeff(BMP3_IIR_FILTER_COEFF_1);
-
     TEMPERATURE = sht31.readTemperature();
     HUMIDITY = sht31.readHumidity();
 
@@ -109,9 +107,8 @@ float readEnvironmentSensors() {
     bmp.performReading();
     delay(100);
     bmp.performReading();
+
     PRESSURE = bmp.pressure;
-  
-    // PRESSURE = bmp.pressure;
     debugPrint("Temperature C: ");
     debugPrintln(TEMPERATURE);
 
@@ -150,7 +147,7 @@ void wifiState(int stateValue) {
       IPAddress gateway(10, 0, 0, 1);
       IPAddress subnet(255, 255, 255, 0);
       IPAddress DNS(10, 0, 0, 100);
-      int chan = 7;  // Pre-defined (static) WiFi channel
+      int chan = 14;  // Pre-defined (static) WiFi channel
       unsigned char bssid[18] = { 0x9A, 0x3B, 0xAD, 0xB4, 0xF6, 0x3A }; // Hardcoding the AP's MAC addr
 
       WiFi.config(ip, gateway, subnet, DNS);
@@ -167,7 +164,10 @@ void wifiState(int stateValue) {
         debugPrint(".");
         delay(50);
     }
-  }
+
+    debugPrint("WiFi Channel: ");
+    debugPrintln(WiFi.channel());
+      }
 }
 
 
@@ -183,7 +183,7 @@ void MQTT_connect() {
   debugPrint("Connecting to MQTT ... ");
 
   // Limit the number of connection retries
-  int mqttRetries = 0;
+  int mqttRetries = 1;
 
   while ((mqttConnectStatus = mqtt.connect()) != 0 && mqttRetries <= 30) { // connect will return 0 for connected
        debugPrintln(mqtt.connectErrorString(mqttConnectStatus));
